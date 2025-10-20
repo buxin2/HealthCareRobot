@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Account - {{ patient.name or 'Unknown Patient' }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f7fafc;
+            color: #0f172a;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            color: #0ea5e9;
+            font-size: 1.8rem;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .nav-buttons a {
+            padding: 10px 16px;
+            background: #0ea5e9;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .nav-buttons a:hover {
+            background: #0284c7;
+        }
+        .patient-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+        .patient-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #e2e8f0;
+        }
+        .patient-basic-info h2 {
+            margin: 0 0 10px 0;
+            color: #0f172a;
+            font-size: 2rem;
+        }
+        .patient-id {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        .basic-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .detail-label {
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .detail-value {
+            color: #0f172a;
+            font-size: 1rem;
+        }
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .content-section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            color: #0ea5e9;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-content {
+            color: #0f172a;
+            line-height: 1.6;
+        }
+        .visits-section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .visit-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #f8fafc;
+        }
+        .visit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .visit-date {
+            color: #64748b;
+            font-weight: 500;
+        }
+        .visit-type {
+            background: #0ea5e9;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        .visit-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .vital-item {
+            text-align: center;
+            padding: 10px;
+            background: #fff;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .vital-label {
+            color: #64748b;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+        .vital-value {
+            color: #0f172a;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #cbd5e1;
+        }
+        .edit-button {
+            background: #10b981;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin-top: 20px;
+        }
+        .edit-button:hover {
+            background: #059669;
+        }
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            .patient-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .basic-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-user"></i> Patient Account</h1>
+            <div class="nav-buttons">
+                <a href="/PatientProfiles.html"><i class="fas fa-arrow-left"></i> Back to Profiles</a>
+                <a href="/PatientSignin.html"><i class="fas fa-sign-in-alt"></i> Patient Sign In</a>
+                <a href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                <a href="/logout" style="background:#ef4444"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            </div>
+        </div>
+
+        {% if patient %}
+        <div class="patient-header">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                {% if representative_photo %}
+                <img id="patientPhoto" src="/uploads/{{ representative_photo }}" alt="Patient Photo" class="patient-photo">
+                {% else %}
+                <div id="patientPhotoPlaceholder" class="patient-photo" style="background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-user" style="color: #94a3b8; font-size: 3rem;"></i>
+                </div>
+                {% endif %}
+                {% if session.patient_ok %}
+                <div>
+                    <input type="file" id="photoInput" accept="image/*" style="display:none">
+                    <button class="edit-button" style="background:#0ea5e9" onclick="document.getElementById('photoInput').click(); return false;">
+                        <i class="fas fa-camera"></i> Change Photo
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            <div class="patient-basic-info">
+                <h2>{{ patient.name or 'Unknown Patient' }}</h2>
+                <div class="patient-id">Patient ID: {{ patient.id }}</div>
+                <div class="basic-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Age</span>
+                        <span class="detail-value">{{ patient.age or 'Not specified' }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Gender</span>
+                        <span class="detail-value">{{ patient.gender or 'Not specified' }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Contact</span>
+                        <span class="detail-value">{{ patient.contact or 'Not provided' }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Address</span>
+                        <span class="detail-value">{{ patient.address or 'Not provided' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-heartbeat"></i>
+                    Medical History
+                </h3>
+                <div class="section-content">
+                    {% if patient.medical_history %}
+                        {{ patient.medical_history }}
+                    {% else %}
+                        <p>No medical history recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Allergies & Medications
+                </h3>
+                <div class="section-content">
+                    {% if patient.allergies %}
+                        <p><strong>Allergies:</strong> {{ patient.allergies }}</p>
+                    {% endif %}
+                    {% if patient.medications %}
+                        <p><strong>Medications:</strong> {{ patient.medications }}</p>
+                    {% endif %}
+                    {% if not patient.allergies and not patient.medications %}
+                        <p>No allergies or medications recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-user-friends"></i>
+                    Emergency Contact
+                </h3>
+                <div class="section-content">
+                    {% if patient.emergency_name %}
+                        <p><strong>Name:</strong> {{ patient.emergency_name }}</p>
+                        <p><strong>Relationship:</strong> {{ patient.emergency_relation or 'Not specified' }}</p>
+                        <p><strong>Contact:</strong> {{ patient.emergency_contact or 'Not provided' }}</p>
+                        <p><strong>Address:</strong> {{ patient.emergency_address or 'Not provided' }}</p>
+                    {% else %}
+                        <p>No emergency contact information recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="content-section">
+                <h3 class="section-title">
+                    <i class="fas fa-stethoscope"></i>
+                    Doctor Notes
+                </h3>
+                <div class="section-content">
+                    {% if patient.notes %}
+                        {{ patient.notes }}
+                    {% else %}
+                        <p>No doctor notes recorded.</p>
+                    {% endif %}
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 20px;">
+                    <button class="edit-button" onclick="editPatient()" style="flex: 1;">
+                        <i class="fas fa-edit"></i> Edit Patient Information
+                    </button>
+                    <button class="edit-button" onclick="viewQRCode({{ patient.id }})" style="flex: 1; background: #10b981;">
+                        <i class="fas fa-qrcode"></i> View QR Code
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="visits-section">
+            <h3 class="section-title">
+                <i class="fas fa-calendar-alt"></i>
+                Visit History & Robot Interview Data
+            </h3>
+            {% if visits %}
+                {% for visit in visits %}
+                <div class="visit-item">
+                    <div class="visit-header">
+                        <span class="visit-date">{{ visit.created_at or visit.archived_at }}</span>
+                        <span class="visit-type">{{ visit.source or 'Current' }}</span>
+                        {% if visit.heart_rate or visit.spo2 or visit.body_temp_f %}
+                        <span style="background: #10b981; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem;">
+                            <i class="fas fa-robot"></i> Robot Data
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if visit.chief_complaint %}
+                    <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 6px; border-left: 4px solid #0ea5e9;">
+                        <strong>Chief Complaint:</strong> {{ visit.chief_complaint }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="visit-details">
+                        <div class="vital-item">
+                            <div class="vital-label">Heart Rate</div>
+                            <div class="vital-value" style="color: {% if visit.heart_rate and visit.heart_rate > 0 %}#10b981{% else %}#64748b{% endif %};">
+                                {{ visit.heart_rate or 'N/A' }} bpm
+                            </div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-label">SpO₂</div>
+                            <div class="vital-value" style="color: {% if visit.spo2 and visit.spo2 > 0 %}#10b981{% else %}#64748b{% endif %};">
+                                {{ visit.spo2 or 'N/A' }}%
+                            </div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-label">Body Temp</div>
+                            <div class="vital-value" style="color: {% if visit.body_temp_f and visit.body_temp_f > 0 %}#10b981{% else %}#64748b{% endif %};">
+                                {{ visit.body_temp_f or 'N/A' }}°F
+                            </div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-label">Weight</div>
+                            <div class="vital-value" style="color: {% if visit.weight_kg and visit.weight_kg > 0 %}#10b981{% else %}#64748b{% endif %};">
+                                {{ visit.weight_kg or 'N/A' }} kg
+                            </div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-label">Env Temp</div>
+                            <div class="vital-value" style="color: {% if visit.env_temp_f and visit.env_temp_f > 0 %}#10b981{% else %}#64748b{% endif %};">
+                                {{ visit.env_temp_f or 'N/A' }}°F
+                            </div>
+                        </div>
+                        <div class="vital-item">
+                            <div class="vital-label">Humidity</div>
+                            <div class="vital-value" style="color: {% if visit.humidity_percent and visit.humidity_percent > 0 %}#10b981{% else %}#64748b{% endif %};">
+                                {{ visit.humidity_percent or 'N/A' }}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if visit.pain_description %}
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                        <strong>Pain Description:</strong> {{ visit.pain_description }}
+                    </div>
+                    {% endif %}
+                    {% if visit.additional_symptoms %}
+                    <div style="margin-top: 10px;">
+                        <strong>Additional Symptoms:</strong> {{ visit.additional_symptoms }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if visit.photo %}
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+                        <strong>Photo:</strong> 
+                        <a href="/uploads/{{ visit.photo }}" target="_blank" style="color: #0ea5e9; text-decoration: none;">
+                            <i class="fas fa-image"></i> View Photo
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <h3>No visits recorded</h3>
+                    <p>This patient has no visit history in the system.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-user-slash"></i>
+            <h3>Patient not found</h3>
+            <p>The requested patient account could not be found.</p>
+            <a href="/PatientProfiles.html" style="color: #0ea5e9; text-decoration: none;">← Back to Patient Profiles</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const photoInput = document.getElementById('photoInput');
+        if (photoInput) {
+            photoInput.addEventListener('change', async function() {
+                const file = this.files && this.files[0];
+                if (!file) return;
+                try {
+                    const fd = new FormData();
+                    fd.append('photo', file);
+                    const upRes = await fetch('/upload_photo', { method: 'POST', body: fd });
+                    const upJson = await upRes.json();
+                    if (!upRes.ok || upJson.status !== 'success') {
+                        alert('Photo upload failed');
+                        return;
+                    }
+                    const filename = upJson.filename;
+                    const setRes = await fetch('/patient/photo', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ filename }) });
+                    if (setRes.redirected) {
+                        window.location = setRes.url;
+                        return;
+                    }
+                    // Fallback: update image src without redirect
+                    const img = document.getElementById('patientPhoto');
+                    if (img) {
+                        img.src = '/uploads/' + filename;
+                    } else {
+                        const ph = document.getElementById('patientPhotoPlaceholder');
+                        if (ph) {
+                            const replacement = document.createElement('img');
+                            replacement.id = 'patientPhoto';
+                            replacement.className = 'patient-photo';
+                            replacement.src = '/uploads/' + filename;
+                            ph.replaceWith(replacement);
+                        }
+                    }
+                } catch (e) {
+                    alert('Error updating photo');
+                }
+            });
+        }
+        function editPatient() {
+            // For now, redirect to the existing edit page
+            // In the future, this could open a modal or redirect to a patient-specific edit page
+            const patientId = new URLSearchParams(window.location.search).get('patient_id');
+            if (patientId) {
+                window.open('/edit/' + patientId, '_blank');
+            } else {
+                alert('Patient ID not found. Cannot edit patient information.');
+            }
+        }
+
+        function viewQRCode(patientId) {
+            window.open('/qr/' + patientId, '_blank');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Report</title>
+  <style>
+    :root {
+      --primary: #0066ff;
+      --primary-light: #4d94ff;
+      --secondary: #6366f1;
+      --success: #10b981;
+      --neutral-50: #fafafa;
+      --neutral-100: #f5f5f5;
+      --neutral-200: #e5e5e5;
+      --neutral-300: #d4d4d4;
+      --neutral-400: #a3a3a3;
+      --neutral-500: #737373;
+      --neutral-600: #525252;
+      --neutral-700: #404040;
+      --neutral-800: #262626;
+      --glass-bg: rgba(255, 255, 255, 0.95);
+      --glass-border: rgba(255, 255, 255, 0.3);
+      --shadow: 0 2px 4px rgba(0,0,0,0.1);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      font-size: 11px;
+      line-height: 1.3;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: var(--neutral-800);
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-image: radial-gradient(circle at 20px 20px, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    @page { size: A4; margin: 8mm; }
+
+    .container {
+      max-width: 210mm;
+      margin: 8px auto;
+      padding: 0 8px;
+    }
+
+    .sheet {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      position: relative;
+      max-height: 297mm;
+    }
+
+    .sheet::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+
+    .sheet-inner {
+      padding: 16px;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Compact Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    .logo {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 800;
+      font-size: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      flex: 1;
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 2px 0;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand .subtitle {
+      color: var(--neutral-600);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .meta {
+      text-align: right;
+      color: var(--neutral-500);
+      font-size: 9px;
+      font-weight: 500;
+    }
+
+    .meta div {
+      margin: 2px 0;
+      padding: 4px 8px;
+      background: var(--neutral-100);
+      border-radius: 6px;
+      border: 1px solid var(--neutral-200);
+    }
+
+    /* Bottom Toolbar */
+    .bottom-toolbar {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--neutral-200);
+      flex-wrap: wrap;
+    }
+
+    /* Compact Toolbar - old toolbar styles removed since we're using bottom */
+
+    .btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-secondary {
+      background: var(--neutral-100);
+      color: var(--neutral-700);
+      border: 1px solid var(--neutral-300);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    /* Compact Sections */
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--neutral-800);
+      margin: 16px 0 8px 0;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, var(--neutral-50), var(--neutral-100));
+      border-radius: 8px;
+      border-left: 3px solid var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-title::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    /* Compact Grid Layout */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .info-section {
+      background: white;
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--neutral-200);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: var(--neutral-600);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .info-value {
+      font-size: 10px;
+      color: var(--neutral-800);
+      font-weight: 500;
+      min-height: 16px;
+      padding: 4px 6px;
+      background: var(--neutral-50);
+      border-radius: 4px;
+      border: 1px solid var(--neutral-200);
+    }
+
+    .info-value.empty {
+      color: var(--neutral-400);
+      font-style: italic;
+    }
+
+    /* Compact Photo */
+    .patient-photo {
+      width: 60px; height: 60px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid var(--neutral-200);
+      box-shadow: var(--shadow);
+    }
+
+    .photo-placeholder {
+      width: 60px; height: 60px;
+      border-radius: 8px;
+      background: var(--neutral-100);
+      border: 2px dashed var(--neutral-300);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--neutral-400);
+      font-size: 8px;
+    }
+
+    /* Compact Vitals */
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .vital-item {
+      background: white;
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+      border: 1px solid var(--neutral-200);
+      box-shadow: var(--shadow);
+    }
+
+    .vital-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 2px;
+    }
+
+    .vital-label {
+      font-size: 8px;
+      color: var(--neutral-600);
+      font-weight: 500;
+    }
+
+    /* Compact Prescription */
+    .prescription-container {
+      background: white;
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--neutral-200);
+      margin-top: 12px;
+    }
+
+    .voice-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .voice-status {
+      color: var(--neutral-500);
+      font-size: 9px;
+      font-weight: 500;
+      margin-left: auto;
+    }
+
+    .prescription-textarea {
+      width: 100%;
+      height: 80px;
+      padding: 8px;
+      border: 2px solid var(--neutral-200);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 10px;
+      line-height: 1.4;
+      resize: none;
+      background: var(--neutral-50);
+    }
+
+    .prescription-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+    }
+
+    .prescription-textarea::placeholder {
+      color: var(--neutral-400);
+      font-size: 9px;
+    }
+
+    /* Special layout for A4 */
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    /* Voice button states */
+    .btn-voice-active {
+      background: linear-gradient(135deg, var(--success), #16a34a);
+      color: white;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Print optimizations */
+    @media print {
+      body {
+        background: white;
+        font-size: 10px;
+      }
+      
+      body::before { display: none; }
+      
+      .container {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+      
+      .sheet {
+        box-shadow: none;
+        border: none;
+        border-radius: 0;
+        background: white;
+        max-height: none;
+      }
+      
+      .sheet-inner {
+        padding: 12px;
+      }
+      
+      .bottom-toolbar {
+        display: none;
+      }
+      
+      .prescription-textarea {
+        height: 60px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+      
+      .vitals-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <script>
+    function doPrint() { window.print(); }
+    
+    let recog = null; 
+    let recognizing = false;
+    
+    function initRecog() {
+      if (recog) return recog;
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+      recog = new SR();
+      recog.lang = 'en-US';
+      recog.interimResults = true;
+      recog.continuous = true;
+      recog.onresult = (e) => {
+        const box = document.getElementById('prescriptionBox');
+        let finalText = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const res = e.results[i];
+          if (res.isFinal) finalText += res[0].transcript + ' ';
+        }
+        if (finalText) box.value = (box.value + (box.value ? '\n' : '') + finalText.trim());
+      };
+      recog.onerror = () => {};
+      recog.onend = () => { recognizing = false; toggleBtns(); };
+      return recog;
+    }
+    
+    function toggleBtns() {
+      const startBtn = document.getElementById('startVoice');
+      const stopBtn = document.getElementById('stopVoice');
+      const status = document.getElementById('voiceStatus');
+      
+      if (!startBtn || !stopBtn) return;
+      
+      startBtn.disabled = recognizing;
+      stopBtn.disabled = !recognizing;
+      
+      if (recognizing) {
+        startBtn.classList.add('btn-voice-active');
+        if (status) status.textContent = '🎤 Listening...';
+      } else {
+        startBtn.classList.remove('btn-voice-active');
+        if (status) status.textContent = 'Voice ready';
+      }
+    }
+    
+    function startVoice() {
+      const r = initRecog();
+      if (!r) { alert('Voice not supported'); return; }
+      if (recognizing) return;
+      recognizing = true; 
+      toggleBtns(); 
+      r.start();
+    }
+    
+    function stopVoice() {
+      if (recog && recognizing) { recog.stop(); }
+    }
+    
+    window.addEventListener('DOMContentLoaded', toggleBtns);
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="sheet">
+      <div class="sheet-inner">
+        <!-- Compact Header -->
+        <div class="header">
+          <div class="logo">SH</div>
+          <div class="brand">
+            <h1>Shrda Hospital</h1>
+            <div class="subtitle">123 Health Ave, Belgaum • +91 93190 38312 • care@shrda.hospital</div>
+          </div>
+          <div class="meta">
+            <div>📅 {{ r['created_at'] }}</div>
+            <div>🆔 {{ r['id'] }}</div>
+          </div>
+        </div>
+
+
+
+        <!-- Two Column Layout -->
+        <div class="two-column">
+          <!-- Left Column -->
+          <div>
+            <!-- Patient Info -->
+            <div class="section-title">👤 Patient Info</div>
+            <div class="info-section">
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Photo</div>
+                  <div>
+                    {% if r['photo'] %}
+                      <img class="patient-photo" src="/uploads/{{ r['photo'] }}" alt="Patient">
+                    {% else %}
+                      <div class="photo-placeholder">No photo</div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Name</div>
+                  <div class="info-value {{ 'empty' if not r['name'] }}">{{ r['name'] or 'Not specified' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Complaint -->
+            <div class="section-title">🩺 Complaint</div>
+            <div class="info-section">
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Chief Complaint</div>
+                  <div class="info-value {{ 'empty' if not r['chief_complaint'] }}">{{ r['chief_complaint'] or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Pain Description</div>
+                  <div class="info-value {{ 'empty' if not r['pain_description'] }}">{{ r['pain_description'] or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Additional Feelings</div>
+                  <div class="info-value {{ 'empty' if not r['additional_symptoms'] }}">{{ r['additional_symptoms'] or 'N/A' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div>
+            <!-- Medical History -->
+            <div class="section-title">📋 Medical History</div>
+            <div class="info-section">
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Medical History</div>
+                  <div class="info-value {{ 'empty' if not r['medical_history'] }}">{{ r['medical_history'] or 'N/A' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Vitals -->
+            <div class="section-title">💓 Vitals</div>
+            <div class="info-section">
+              <div class="vitals-grid">
+                <div class="vital-item">
+                  <div class="vital-value">{{ r['heart_rate'] or '--' }}</div>
+                  <div class="vital-label">HR (BPM)</div>
+                </div>
+                <div class="vital-item">
+                  <div class="vital-value">{{ r['spo2'] or '--' }}</div>
+                  <div class="vital-label">SpO₂ (%)</div>
+                </div>
+                <div class="vital-item">
+                  <div class="vital-value">{{ r['body_temp_f'] or '--' }}</div>
+                  <div class="vital-label">Body Temp (°F)</div>
+                </div>
+                <div class="vital-item">
+                  <div class="vital-value">{{ r['env_temp_f'] or '--' }}</div>
+                  <div class="vital-label">Env Temp (°F)</div>
+                </div>
+                <div class="vital-item">
+                  <div class="vital-value">{{ r['humidity_percent'] or '--' }}</div>
+                  <div class="vital-label">Humidity (%)</div>
+                </div>
+                <div class="vital-item">
+                  <div class="vital-value">{{ r['weight_kg'] or '--' }}</div>
+                  <div class="vital-label">Weight (kg)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Width Prescription -->
+        <div class="full-width">
+          <div class="section-title">💊 Prescription</div>
+          <div class="prescription-container">
+            <div class="voice-controls">
+              <button id="startVoice" type="button" onclick="startVoice()" class="btn btn-primary">🎤 Voice</button>
+              <button id="stopVoice" type="button" onclick="stopVoice()" class="btn btn-secondary" disabled>⏹️ Stop</button>
+              <div id="voiceStatus" class="voice-status">Voice ready</div>
+            </div>
+            <textarea 
+              id="prescriptionBox" 
+              class="prescription-textarea"
+              placeholder="Paracetamol 500mg – 1 tab after food, twice daily for 3 days"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Bottom Toolbar -->
+        <div class="bottom-toolbar">
+          <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+          <button type="button" onclick="doPrint()" class="btn btn-primary">🖨️ Print Report</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

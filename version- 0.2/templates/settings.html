@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <style>
+    :root{ --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --brand:#0ea5e9 }
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#f8fafc;color:var(--ink)}
+    .wrap{max-width:900px;margin:24px auto;padding:0 12px}
+    .section{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+    h2{margin:0 0 10px 0}
+    h3{margin:0 0 10px 0;color:#334155}
+    form.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    label{display:flex;flex-direction:column;font-size:12px;color:var(--muted)}
+    input{padding:10px;border:1px solid var(--line);border-radius:8px}
+    .full{grid-column:1/-1}
+    button{padding:10px 12px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;cursor:pointer}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid var(--line);padding:8px;text-align:left}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Admin Section -->
+    <div class="section">
+      <h2>Admin</h2>
+      <form class="grid" method="POST">
+        <label class="full">Secret Key<input name="secret_key" value="{{ secret_key }}"></label>
+        <label>Admin Hospital ID<input name="hospital_id" value="{{ hospital_id }}"></label>
+        <label>Admin Hospital Password<input type="password" name="hospital_pw" value="{{ hospital_pw }}"></label>
+        <label>Fallback Doctor ID<input name="doctor_id" value="{{ doctor_id }}"></label>
+        <label>Fallback Doctor Password<input type="password" name="doctor_pw" value="{{ doctor_pw }}"></label>
+        <div class="full"><button type="submit">Save Admin Settings</button></div>
+      </form>
+    </div>
+
+    <!-- Hospital Section (Limited Accounts) -->
+    <div class="section">
+      <h2>Hospital (Limited)</h2>
+      <h3>Create Hospital ID</h3>
+      <form class="grid" method="POST" style="grid-template-columns:1fr 1fr 1fr auto">
+        <input name="new_hospital_name" placeholder="Name">
+        <input name="new_hospital_id" placeholder="Hospital ID" required>
+        <input name="new_hospital_pw" placeholder="Password" required>
+        <button type="submit">Create</button>
+      </form>
+      <h3 style="margin-top:12px">Existing Hospital IDs</h3>
+      <table>
+        <thead><tr><th>ID</th><th>Hospital ID</th><th>Name</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for h in hospitals %}
+          <tr>
+            <td>{{ h['id'] }}</td>
+            <td>{{ h['hospital_id'] }}</td>
+            <td>{{ h['name'] or '' }}</td>
+            <td>{{ h['created_at'] }}</td>
+            <td>
+              <form method="POST" style="display:inline">
+                <input type="hidden" name="delete_hospital_id" value="{{ h['id'] }}">
+                <button type="submit" style="background:#ef4444;border-color:#ef4444">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Doctor Section -->
+    <div class="section">
+      <h2>Doctor</h2>
+      <h3>Add Doctor</h3>
+      <form class="grid" method="POST" style="grid-template-columns:1fr 1fr 1fr auto">
+        <input name="new_doctor_name" placeholder="Name">
+        <input name="new_doctor_id" placeholder="Doctor ID" required>
+        <input name="new_doctor_pw" placeholder="Password" required>
+        <button type="submit">Add</button>
+      </form>
+      <h3 style="margin-top:12px">Existing Doctors</h3>
+      <table>
+        <thead><tr><th>ID</th><th>Doctor ID</th><th>Name</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for d in doctors %}
+          <tr>
+            <td>{{ d['id'] }}</td>
+            <td>{{ d['doctor_id'] }}</td>
+            <td>{{ d['name'] or '' }}</td>
+            <td>{{ d['created_at'] }}</td>
+            <td>
+              <form method="POST" style="display:inline">
+                <input type="hidden" name="delete_doctor_id" value="{{ d['id'] }}">
+                <button type="submit" style="background:#ef4444;border-color:#ef4444">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="text-align:right;padding:6px 2px"><a href="/">Home</a></div>
+  </div>
+</body>
+</html>
+
+

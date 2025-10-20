@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Q&A</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(1000px 500px at 20% -10%, #e1f7ff 0%, rgba(225,247,255,0) 60%),
+                            radial-gradient(800px 400px at 120% 10%, #f6e8ff 0%, rgba(246,232,255,0) 60%),
+                            linear-gradient(180deg, #ffffff, #f8fbff);
+            --card-bg: rgba(255,255,255,0.7);
+            --card-br: 16px;
+            --border: 1px solid rgba(0,0,0,0.06);
+            --shadow: 0 10px 30px rgba(24,39,75,0.06), 0 1px 1px rgba(0,0,0,0.02);
+            --primary: #00b5d1;
+            --primary-2: #7c69ef;
+            --text: #0f172a;
+            --muted: #64748b;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+
+        /* Header */
+        .topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; background: #ffffffcc; backdrop-filter: saturate(140%) blur(10px); border-bottom: 1px solid rgba(0,0,0,0.06); }
+        .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+        .brand i { color: var(--primary-2); }
+        .top-actions a { text-decoration: none; color: var(--muted); font-weight: 600; border: var(--border); padding: 8px 12px; border-radius: 10px; background: #fff; }
+        .top-actions a:hover { color: var(--text); }
+
+        /* Card */
+        .qa-card { max-width: 880px; margin: 32px auto; padding: 32px; background: var(--card-bg); border: var(--border); border-radius: 22px; box-shadow: var(--shadow); backdrop-filter: blur(12px); }
+        .qa-container { display: flex; flex-direction: column; align-items: center; gap: 28px; }
+        .progress { font-size: 13px; color: var(--muted); border: var(--border); padding: 6px 12px; border-radius: 999px; background: #fff; }
+
+        /* Bubbles */
+        .bubble { width: 100%; border: var(--border); border-radius: 18px; padding: 16px 18px; display: flex; align-items: center; gap: 12px; background: #fff; box-shadow: 0 2px 0 rgba(0,0,0,0.02); }
+        .bubble i { font-size: 22px; }
+        .bubble p { margin: 0; font-size: 20px; line-height: 1.35; color: var(--text); }
+        .bubble.ai i { color: var(--primary-2); }
+        .bubble.user i { color: var(--text); }
+
+        /* Video */
+        .video-wrap { display: grid; place-items: center; padding: 10px 0; }
+        .video-circle { width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 3px solid #e9f2ff; box-shadow: 0 10px 30px rgba(16,24,40,0.06); position: relative; }
+        .ring { position: absolute; width: 280px; height: 280px; border-radius: 50%; border: 2px dashed rgba(124,105,239,0.35); animation: spin 12s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Controls */
+        .controls { display: flex; align-items: center; justify-content: center; gap: 14px; }
+        .ctrl-btn { width: 54px; height: 54px; border-radius: 50%; border: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #fff; border: var(--border); box-shadow: var(--shadow); transition: transform 0.15s ease, box-shadow 0.2s ease; }
+        .ctrl-btn:hover { transform: translateY(-1px); }
+        .ctrl-btn:active { transform: translateY(0); box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+        .ctrl-btn.mic { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: #fff; border: none; }
+        .ctrl-btn.mic.active { box-shadow: 0 0 0 8px rgba(124,105,239,0.12), 0 10px 30px rgba(124,105,239,0.35); }
+        .ctrl-btn.stop { background: #fff; color: #475569; }
+
+        /* Hidden answer holders */
+        .hidden-fields { display: none; }
+
+        /* Sensor Video Popup Styles */
+        .sensor-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sensor-popup-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .sensor-popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .sensor-popup-header h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 18px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .sensor-video-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: #000;
+        }
+
+        .sensor-video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .sensor-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.1));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+        }
+
+        .sensor-instruction {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .sensor-status {
+            font-size: 16px;
+            opacity: 0.9;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .sensor-status.detected {
+            color: #10b981;
+            font-weight: 600;
+        }
+
+        @media (max-width: 640px) {
+            .qa-card { margin: 16px; padding: 20px; }
+            .video-circle { width: 200px; height: 200px; }
+            .bubble p { font-size: 18px; }
+            .sensor-popup-content { width: 95%; }
+            .sensor-video-container { height: 300px; }
+            .sensor-instruction { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="qa-card">
+        <div class="qa-container">
+            <div class="progress" id="qaProgress">Getting started…</div>
+
+            <div class="bubble user">
+                <i class="fa-regular fa-user"></i>
+                <p id="answerDisplay">patient answer here</p>
+            </div>
+
+            <div class="video-wrap">
+                <div class="ring" aria-hidden="true"></div>
+                <video id="browserCamera" class="video-circle" autoplay muted playsinline></video>
+                <canvas id="photoCanvas" style="display: none;"></canvas>
+            </div>
+
+            <div class="bubble ai">
+                <i class="fa-solid fa-robot"></i>
+                <p id="questionDisplay">AI Question here</p>
+            </div>
+
+            <div class="controls" style="gap:10px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:8px;border:1px solid rgba(0,0,0,0.06);background:#fff;border-radius:999px;padding:4px 10px">
+                    <span style="font-size:12px;color:#64748b;font-weight:700">Language</span>
+                    <select id="qaLang" style="border:none;outline:none;background:transparent;font-weight:700">
+                        <option value="en" selected>English</option>
+                        <option value="hi">Hindi</option>
+                    </select>
+                </div>
+                <button id="qaMic" class="ctrl-btn mic" title="Start interview">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+                <span id="weightBadge" style="display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(0,0,0,0.06);background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;color:#0f172a;">
+                    <i class="fa-solid fa-weight-scale" style="color:#64748b"></i>
+                    <span id="weightText">Weight: -- kg</span>
+                    <span style="color:#94a3b8">·</span>
+                    <span id="vitalsStatusText" style="color:#0f172a">Waiting for captured vitals...</span>
+                </span>
+                <button id="qaCancel" class="ctrl-btn stop" title="Cancel / Stop">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <!-- Hidden answer holders expected by static/main.js -->
+            <div class="hidden-fields">
+                <span id="qrScan"></span>
+                <span id="patientId"></span>
+                <span id="name"></span>
+                <span id="age"></span>
+                <span id="gender"></span>
+                <span id="contact"></span>
+                <span id="address"></span>
+                <span id="medicalHistory"></span>
+                <span id="chiefComplaint"></span>
+                <span id="painDescription"></span>
+                <span id="additionalFeelings"></span>
+                <span id="emergencyName"></span>
+                <span id="emergencyRelation"></span>
+                <span id="emergencyGender"></span>
+                <span id="emergencyContact"></span>
+                <span id="emergencyAddress"></span>
+            </div>
+
+            <!-- Sensor Video Popup -->
+            <div id="sensorVideoPopup" class="sensor-popup" style="display: none;">
+                <div class="sensor-popup-content">
+                    <div class="sensor-popup-header">
+                        <h3 id="sensorPopupTitle">Sensor Reading</h3>
+                        <button id="closeSensorPopup" class="close-btn">&times;</button>
+                    </div>
+                    <div class="sensor-video-container">
+                        <video id="sensorVideo" autoplay muted playsinline loop>
+                            <source id="sensorVideoSource" src="" type="video/mp4">
+                        </video>
+                        <div class="sensor-overlay">
+                            <div class="sensor-instruction" id="sensorInstruction">
+                                Please place your finger on the sensor
+                            </div>
+                            <div class="sensor-status" id="sensorStatus">
+                                Waiting for detection...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="{{ url_for('static', filename='js/core/tts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pages/qa.js') }}"></script>
+    <script>
+        // Browser Camera Setup
+        let stream = null;
+        let video = document.getElementById('browserCamera');
+        let canvas = document.getElementById('photoCanvas');
+        let ctx = canvas.getContext('2d');
+
+        // Initialize browser camera
+        async function initBrowserCamera() {
+            try {
+                console.log('🎥 Initializing browser camera...');
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    },
+                    audio: false
+                });
+                video.srcObject = stream;
+                
+                // Wait for video to be ready
+                video.onloadedmetadata = function() {
+                    console.log('✅ Browser camera initialized and ready');
+                    console.log(`📹 Video dimensions: ${video.videoWidth}x${video.videoHeight}`);
+                };
+                
+            } catch (error) {
+                console.error('❌ Camera access denied:', error);
+                console.log('🔄 Falling back to external camera...');
+                // Fallback to external camera if browser camera fails
+                video.src = "{{ url_for('video_feed') }}";
+            }
+        }
+
+        // Capture photo from browser camera
+        function captureBrowserPhoto() {
+            console.log('📸 captureBrowserPhoto called');
+            console.log('📸 Stream available:', !!stream);
+            console.log('📸 Video element:', !!video);
+            console.log('📸 Video width:', video ? video.videoWidth : 'N/A');
+            
+            if (stream && video && video.videoWidth > 0) {
+                console.log('📸 Capturing photo from browser camera...');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                console.log('📸 Canvas drawn, converting to blob...');
+                
+                // Convert to blob and upload
+                canvas.toBlob(function(blob) {
+                    if (!blob) {
+                        console.error('❌ Failed to create blob from canvas');
+                        return;
+                    }
+                    
+                    console.log('📸 Blob created, size:', blob.size, 'type:', blob.type);
+                    console.log('📸 Uploading photo blob...');
+                    const formData = new FormData();
+                    formData.append('photo', blob, 'patient_photo.jpg');
+                    
+                    fetch('/upload_photo', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        console.log('📸 Upload response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('📸 Upload response data:', data);
+                        if (data.status === 'success') {
+                            sessionStorage.setItem('qa_photo', data.filename);
+                            console.log('✅ Photo captured and uploaded:', data.filename);
+                        } else {
+                            console.error('❌ Photo upload failed:', data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Photo upload error:', error);
+                    });
+                }, 'image/jpeg', 0.8);
+            } else {
+                console.error('❌ Camera not ready for photo capture');
+                console.log('Stream:', !!stream, 'Video element:', !!video, 'Video width:', video ? video.videoWidth : 'N/A');
+            }
+        }
+
+        // Sensor video popup functionality
+        let sensorVideo = document.getElementById('sensorVideo');
+        let sensorVideoSource = document.getElementById('sensorVideoSource');
+        let sensorPopup = document.getElementById('sensorVideoPopup');
+        let sensorStatus = document.getElementById('sensorStatus');
+        let sensorInstruction = document.getElementById('sensorInstruction');
+        let sensorPopupTitle = document.getElementById('sensorPopupTitle');
+        let detectionInterval = null;
+
+        function showSensorVideoPopup(title, instruction, sensorType) {
+            sensorPopupTitle.textContent = title;
+            sensorInstruction.textContent = instruction;
+            sensorStatus.textContent = 'Waiting for detection...';
+            sensorStatus.className = 'sensor-status';
+            sensorPopup.style.display = 'flex';
+            
+            // Load and play the appropriate video
+            loadSensorVideo(sensorType);
+        }
+
+        // Make popup function globally accessible
+        window.showSensorVideoPopup = showSensorVideoPopup;
+
+        function hideSensorVideoPopup() {
+            sensorPopup.style.display = 'none';
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            if (sensorVideo) {
+                sensorVideo.pause();
+                sensorVideo.currentTime = 0;
+            }
+        }
+
+        function loadSensorVideo(sensorType) {
+            let videoPath = '';
+            if (sensorType === 'heartbeat') {
+                videoPath = '/static/videos/finger.mp4';
+            } else if (sensorType === 'temperature') {
+                videoPath = '/static/videos/forehead.mp4';
+            }
+            
+            sensorVideoSource.src = videoPath;
+            sensorVideo.load();
+            
+            // Play video and start detection
+            sensorVideo.play().then(() => {
+                console.log('Video started playing:', videoPath);
+                startDetection(sensorType);
+            }).catch(error => {
+                console.error('Video play error:', error);
+                sensorStatus.textContent = 'Video not available';
+            });
+        }
+
+        function startDetection(sensorType) {
+            if (sensorType === 'heartbeat') {
+                startHeartbeatDetection();
+            } else if (sensorType === 'temperature') {
+                startTemperatureDetection();
+            }
+        }
+
+        function startHeartbeatDetection() {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+            }
+            
+            let detectionCount = 0;
+            const maxDetections = 3; // Require 3 consecutive detections
+            let checkCount = 0;
+            const maxChecks = 20; // Maximum 20 checks (10 seconds)
+            
+            detectionInterval = setInterval(() => {
+                checkCount++;
+                
+                // Simulate finger detection (in real implementation, this would use computer vision)
+                const isDetected = Math.random() > 0.7; // 30% chance of detection
+                
+                if (isDetected) {
+                    detectionCount++;
+                    sensorStatus.textContent = `Finger detected (${detectionCount}/${maxDetections})`;
+                    
+                    if (detectionCount >= maxDetections) {
+                        sensorStatus.textContent = 'Finger detected! Reading heartbeat...';
+                        sensorStatus.className = 'sensor-status detected';
+                        
+                        // Clear interval to prevent multiple calls
+                        clearInterval(detectionInterval);
+                        detectionInterval = null;
+                        
+                        // Close popup after 2 seconds
+                        setTimeout(() => {
+                            hideSensorVideoPopup();
+                            // Continue with heartbeat reading
+                            if (typeof window.startHeartbeatReading === 'function') {
+                                window.startHeartbeatReading();
+                            } else {
+                                console.log('startHeartbeatReading function not found, continuing...');
+                            }
+                        }, 2000);
+                        return;
+                    }
+                } else {
+                    detectionCount = 0;
+                    sensorStatus.textContent = 'Waiting for finger detection...';
+                }
+                
+                // Auto-close after maximum checks
+                if (checkCount >= maxChecks) {
+                    sensorStatus.textContent = 'Timeout - continuing with reading...';
+                    clearInterval(detectionInterval);
+                    detectionInterval = null;
+                    setTimeout(() => {
+                        hideSensorVideoPopup();
+                        if (typeof window.startHeartbeatReading === 'function') {
+                            window.startHeartbeatReading();
+                        } else {
+                            console.log('startHeartbeatReading function not found, continuing...');
+                        }
+                    }, 1000);
+                }
+            }, 500);
+        }
+
+        function startTemperatureDetection() {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+            }
+            
+            let detectionCount = 0;
+            const maxDetections = 3;
+            let checkCount = 0;
+            const maxChecks = 20; // Maximum 20 checks (10 seconds)
+            
+            detectionInterval = setInterval(() => {
+                checkCount++;
+                
+                // Simulate temperature sensor detection
+                const isDetected = Math.random() > 0.6; // 40% chance of detection
+                
+                if (isDetected) {
+                    detectionCount++;
+                    sensorStatus.textContent = `Sensor detected (${detectionCount}/${maxDetections})`;
+                    
+                    if (detectionCount >= maxDetections) {
+                        sensorStatus.textContent = 'Temperature sensor detected! Reading...';
+                        sensorStatus.className = 'sensor-status detected';
+                        
+                        // Clear interval to prevent multiple calls
+                        clearInterval(detectionInterval);
+                        detectionInterval = null;
+                        
+                        // Close popup after 2 seconds
+                        setTimeout(() => {
+                            hideSensorVideoPopup();
+                            // Continue with temperature reading
+                            if (typeof window.waitForTemperature === 'function') {
+                                window.waitForTemperature();
+                            } else {
+                                console.log('waitForTemperature function not found, continuing...');
+                            }
+                        }, 2000);
+                        return;
+                    }
+                } else {
+                    detectionCount = 0;
+                    sensorStatus.textContent = 'Waiting for sensor placement...';
+                }
+                
+                // Auto-close after maximum checks
+                if (checkCount >= maxChecks) {
+                    sensorStatus.textContent = 'Timeout - continuing with reading...';
+                    clearInterval(detectionInterval);
+                    detectionInterval = null;
+                    setTimeout(() => {
+                        hideSensorVideoPopup();
+                        if (typeof window.waitForTemperature === 'function') {
+                            window.waitForTemperature();
+                        } else {
+                            console.log('waitForTemperature function not found, continuing...');
+                        }
+                    }, 1000);
+                }
+            }, 500);
+        }
+
+        // Close popup handlers
+        document.getElementById('closeSensorPopup').addEventListener('click', hideSensorVideoPopup);
+        sensorPopup.addEventListener('click', function(e) {
+            if (e.target === sensorPopup) {
+                hideSensorVideoPopup();
+            }
+        });
+
+        // Initialize camera when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initBrowserCamera();
+        });
+
+        // Stop camera when page unloads
+        window.addEventListener('beforeunload', function() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+    <script>
+        // Wire up controls to existing logic in static/main.js
+        document.getElementById('qaMic').addEventListener('click', function () {
+            if (window.stopSpeaking) window.stopSpeaking();
+            if (typeof index !== 'undefined') index = 0;
+            try {
+                const lang = document.getElementById('qaLang').value;
+                // set recognition language if available
+                if (window.recog) {
+                    window.recog.lang = (lang === 'hi') ? 'hi-IN' : 'en-US';
+                }
+                // store selection for persistence
+                sessionStorage.setItem('qa_lang', lang);
+            } catch (e) {}
+            if (typeof start === 'function') start();
+            document.getElementById('qaMic').classList.add('active');
+        });
+
+        document.getElementById('qaCancel').addEventListener('click', function () {
+            if (window.stopSpeaking) window.stopSpeaking();
+            try { if (window.recog && typeof window.recog.stop === 'function') window.recog.stop(); } catch (e) {}
+            if (typeof index !== 'undefined') index = 0;
+            document.getElementById('qaMic').classList.remove('active');
+        });
+
+        // Progress badge updates from main.js via MutationObservers on hidden fields
+        const fields = [
+            'qrScan','name','chiefComplaint','painDescription','additionalFeelings','medicalHistory'
+        ];
+        let answered = 0;
+        const updateProgress = () => {
+            const pct = Math.round((answered / fields.length) * 100);
+            document.getElementById('qaProgress').innerText = `Progress: ${pct}%`;
+        };
+        fields.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const obs = new MutationObserver(() => {
+                answered = fields.filter(fid => (document.getElementById(fid)?.innerText || '').trim().length > 0).length;
+                updateProgress();
+            });
+            obs.observe(el, { childList: true, characterData: true, subtree: true });
+        });
+        // restore last language selection
+        (function(){
+            const lang = sessionStorage.getItem('qa_lang');
+            if (lang && document.getElementById('qaLang')) {
+                document.getElementById('qaLang').value = lang;
+                if (window.recog) {
+                    window.recog.lang = (lang === 'hi') ? 'hi-IN' : 'en-US';
+                }
+            }
+        })();
+        updateProgress();
+
+        // Auto-start disabled; start manually via mic button
+    </script>
+</body>
+</html>
+
+

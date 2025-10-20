@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:20px;background:#f7fafc;color:#0f172a}
+        .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+        input,button{padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px}
+        button{background:#0ea5e9;color:#fff;border:none;cursor:pointer}
+        table{width:100%;border-collapse:collapse;background:#fff}
+        th,td{border:1px solid #e2e8f0;padding:8px;font-size:14px}
+        th{background:#f1f5f9;text-align:left}
+        .wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:10px}
+    </style>
+    </head>
+<body>
+    <h2>🩺 Patient Dashboard</h2>
+    <div class="bar">
+        <input id="q" placeholder="Search by name, age, or complaint..." value="{{ q or '' }}" />
+        <button onclick="location.href='/dashboard?q=' + encodeURIComponent(document.getElementById('q').value)">Search</button>
+        <button onclick="location.href='/export.csv?q=' + encodeURIComponent(document.getElementById('q').value)">⬇️ Export to CSV</button>
+        <button onclick="location.href='/store'">Go to Store</button>
+        <button onclick="location.href='/PatientProfiles.html'" style="background: #10b981;">📋 Patient Profiles</button>
+        <button onclick="location.href='/doctor/create_patient'" style="background: #8b5cf6;">➕ Create Patient</button>
+    </div>
+    <div class="wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Photo</th>
+                    <th>Name</th>
+                    <th>Chief Complaint</th>
+                    <th>Pain Description</th>
+                    <th>Additional Feelings</th>
+                    <th>Medical History</th>
+                    <th>Heart Rate</th>
+                    <th>SpO₂</th>
+                    <th>Body Temp (°F)</th>
+                    <th>Env Temp (°F)</th>
+                    <th>Humidity (%)</th>
+                    <th>Weight (kg)</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{% if r['photo'] %}<img src="/uploads/{{ r['photo'] }}" alt="photo" style="width:44px;height:44px;border-radius:50%;object-fit:cover">{% endif %}</td>
+                    <td>{{ r['name'] or '' }}</td>
+                    <td>{{ r['chief_complaint'] or '' }}</td>
+                    <td>{{ r['pain_description'] or '' }}</td>
+                    <td>{{ r['additional_symptoms'] or '' }}</td>
+                    <td>{{ r['medical_history'] or '' }}</td>
+                    <td>{{ r['heart_rate'] }}</td>
+                    <td>{{ r['spo2'] }}</td>
+                    <td>{{ r['body_temp_f'] }}</td>
+                    <td>{{ r['env_temp_f'] }}</td>
+                    <td>{{ r['humidity_percent'] }}</td>
+                    <td>{{ r['weight_kg'] }}</td>
+                    <td>
+                        {% if r['photo'] %}<a href="/uploads/{{ r['photo'] }}" target="_blank">Photo</a> · {% endif %}
+                        {% if r['profile_id'] %}<a href="/PatientAccount.html?patient_id={{ r['profile_id'] }}" target="_blank">Profile</a> · {% endif %}
+                        <a href="/view/{{ r['id'] }}" target="_blank" onclick="try{localStorage.setItem('refresh_store', String(Date.now()));}catch(e){} setTimeout(function(){ location.reload(); }, 600);">View</a> ·
+                        <a href="/edit/{{ r['id'] }}" target="_blank">Edit</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+// Auto-update via SSE
+(function(){
+  const tbody = document.querySelector('tbody');
+  const qInput = document.getElementById('q');
+  function esc(s){return (s==null?'':String(s))}
+  function imgCell(photo){ return photo ? `<img src="/uploads/${photo}" alt="photo" style="width:44px;height:44px;border-radius:50%;object-fit:cover">` : '' }
+  function actionsCell(r){
+    const photo = r.photo ? `<a href="/uploads/${r.photo}" target="_blank">Photo</a> · ` : '';
+    const profile = r.profile_id ? `<a href="/PatientAccount.html?patient_id=${r.profile_id}" target="_blank">Profile</a> · ` : '';
+    return `${photo}${profile}<a href="/view/${r.id}" target="_blank">View</a> · <a href="/edit/${r.id}" target="_blank">Edit</a>`;
+  }
+  async function refresh(){
+    const q = qInput ? qInput.value : '';
+    const res = await fetch('/api/patients/recent?limit=50' + (q?('&q='+encodeURIComponent(q)):'') );
+    const rows = await res.json();
+    const html = rows.map(r=>`
+      <tr>
+        <td>${imgCell(r.photo)}</td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.chief_complaint)}</td>
+        <td>${esc(r.pain_description)}</td>
+        <td>${esc(r.additional_symptoms)}</td>
+        <td>${esc(r.medical_history)}</td>
+        <td>${esc(r.heart_rate)}</td>
+        <td>${esc(r.spo2)}</td>
+        <td>${esc(r.body_temp_f)}</td>
+        <td>${esc(r.env_temp_f)}</td>
+        <td>${esc(r.humidity_percent)}</td>
+        <td>${esc(r.weight_kg)}</td>
+        <td>${actionsCell(r)}</td>
+      </tr>`).join('');
+    tbody.innerHTML = html;
+  }
+  try{
+    const es = new EventSource('/events/patients');
+    es.addEventListener('patient_added', refresh);
+    es.addEventListener('patient_archived', refresh);
+    es.addEventListener('hello', function(){ /* connection opened */ });
+  }catch(e){ /* SSE unsupported */ }
+})();
+</script>
+</body>
+</html>
+
+

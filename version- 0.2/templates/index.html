@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;background:#f8fafc;color:#0f172a}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;box-shadow:0 10px 30px rgba(2,6,23,.06);width:min(680px,92vw)}
+    h1{margin:0 0 12px 0;font-size:22px}
+    p{margin:0 0 16px 0;color:#64748b}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+    a.btn{display:block;text-align:center;padding:12px;border:1px solid #e2e8f0;border-radius:10px;text-decoration:none;color:#0f172a;background:#ffffff}
+    a.btn:hover{background:#f1f5f9}
+    .primary{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+    .primary:hover{background:#0284c7}
+  </style>
+  </head>
+<body>
+  <div class="card">
+    <h1>Shrda Hospital Console</h1>
+    <p>Quick navigation</p>
+    <div class="grid">
+      <a class="btn" href="/login/hospital">Hospital Login</a>
+      <a class="btn" href="/login/doctor">Doctor Login</a>
+      <a class="btn" href="/settings">Settings</a>
+      <a class="btn primary" href="/qa">Patient Intake</a>
+      <a class="btn" href="/sensor">Live Sensors</a>
+      <a class="btn" href="/port">Select Port</a>
+      <a class="btn" href="/dashboard">Patient Dashboard</a>
+      <a class="btn" href="/store">Store (Archived)</a>
+      <a class="btn" href="/camera/video_feed" target="_blank">Camera Feed</a>
+      <a class="btn" href="/doctor/create_patient">Create Patient (Doctor)</a>
+      <a class="btn" href="/PatientProfiles.html">Patient Profiles</a>
+      <a class="btn" href="/PatientAccount.html">Patient Account</a>
+      <a class="btn" href="/PatientSignin.html">Patient Signin</a>
+      <a class="btn" href="/logout">Logout</a>
+    </div>
+  </div>
+</body>
+</html>

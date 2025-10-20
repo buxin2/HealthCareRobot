@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctor Login</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;background:#f8fafc;color:#0f172a}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;width:min(400px,92vw)}
+    h2{margin:0 0 10px 0}
+    label{display:block;margin:8px 0 4px;color:#64748b;font-size:12px}
+    input{width:100%;padding:10px;border:1px solid #e2e8f0;border-radius:8px}
+    button{margin-top:12px;width:100%;padding:10px;border-radius:8px;border:1px solid #0ea5e9;background:#0ea5e9;color:#fff;cursor:pointer}
+    .err{color:#dc2626;font-size:12px;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Doctor Login</h2>
+    <form method="POST">
+      <label>Doctor ID</label>
+      <input name="doctor_id" required>
+      <label>Password</label>
+      <input type="password" name="doctor_pw" required>
+      <button type="submit">Login</button>
+      {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    </form>
+  </div>
+</body>
+</html>
+
+

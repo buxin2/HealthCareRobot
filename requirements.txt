@@ -1,0 +1,6 @@
+Flask>=2.2
+ gunicorn>=21.2
+ opencv-python-headless>=4.8
+ qrcode>=7.4
+ pillow>=10.0
+ pyserial>=3.5

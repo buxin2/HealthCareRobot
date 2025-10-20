@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Patient Account</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f7fafc;
+            color: #0f172a;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            color: #0ea5e9;
+            font-size: 1.8rem;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .nav-buttons a {
+            padding: 10px 16px;
+            background: #0ea5e9;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .nav-buttons a:hover {
+            background: #0284c7;
+        }
+        .form-container {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-section {
+            margin-bottom: 30px;
+        }
+        .form-section h3 {
+            color: #0ea5e9;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            color: #374151;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .submit-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .submit-button:hover {
+            transform: translateY(-2px);
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert-success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+        }
+        .alert-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+        .required {
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-user-plus"></i> Create Patient Account</h1>
+            <div class="nav-buttons">
+                <a href="/doctor/manage_patients"><i class="fas fa-users"></i> Manage Patients</a>
+                <a href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            </div>
+        </div>
+
+        <div class="alert alert-success" id="successAlert">
+            <i class="fas fa-check-circle"></i>
+            <span id="successMessage"></span>
+            <div id="qrCodeContainer" style="margin-top: 15px; display: none;">
+                <p><strong>Patient QR Code Generated:</strong></p>
+                <button class="btn btn-success" onclick="viewQRCode()" style="margin-top: 10px;">
+                    <i class="fas fa-qrcode"></i> View & Print QR Code
+                </button>
+            </div>
+        </div>
+
+        <div class="alert alert-error" id="errorAlert">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorMessage"></span>
+        </div>
+
+        <div class="form-container">
+            <form id="createPatientForm">
+                <div class="form-section">
+                    <h3><i class="fas fa-user"></i> Basic Information</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="name">Full Name <span class="required">*</span></label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dob">Date of Birth</label>
+                            <input type="date" id="dob" name="dob">
+                        </div>
+                        <div class="form-group">
+                            <label for="age">Age</label>
+                            <input type="number" id="age" name="age" min="0" max="150">
+                        </div>
+                        <div class="form-group">
+                            <label for="gender">Gender</label>
+                            <select id="gender" name="gender">
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact">Contact Number</label>
+                            <input type="tel" id="contact" name="contact">
+                        </div>
+                        <div class="form-group">
+                            <label for="address">Address</label>
+                            <textarea id="address" name="address" placeholder="Enter full address"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3><i class="fas fa-user-friends"></i> Emergency Contact</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="emergency_name">Emergency Contact Name</label>
+                            <input type="text" id="emergency_name" name="emergency_name">
+                        </div>
+                        <div class="form-group">
+                            <label for="emergency_relation">Relationship</label>
+                            <select id="emergency_relation" name="emergency_relation">
+                                <option value="">Select Relationship</option>
+                                <option value="Spouse">Spouse</option>
+                                <option value="Parent">Parent</option>
+                                <option value="Child">Child</option>
+                                <option value="Sibling">Sibling</option>
+                                <option value="Friend">Friend</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="emergency_contact">Emergency Contact Number</label>
+                            <input type="tel" id="emergency_contact" name="emergency_contact">
+                        </div>
+                        <div class="form-group">
+                            <label for="emergency_address">Emergency Contact Address</label>
+                            <textarea id="emergency_address" name="emergency_address" placeholder="Enter emergency contact address"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+                <div class="form-section">
+                    <h3><i class="fas fa-sign-in-alt"></i> Login Credentials</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="username">Username <span class="required">*</span></label>
+                            <input type="text" id="username" name="username" required placeholder="Patient's chosen username">
+                        </div>
+                        <div class="form-group">
+                            <label for="patient_id_number">Patient ID Number <span class="required">*</span></label>
+                            <input type="text" id="patient_id_number" name="patient_id_number" required placeholder="Unique patient ID number">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3><i class="fas fa-stethoscope"></i> Doctor Notes</h3>
+                    <div class="form-group">
+                        <label for="notes">Initial Doctor Notes</label>
+                        <textarea id="notes" name="notes" placeholder="Enter any initial notes or observations about the patient"></textarea>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-button">
+                    <i class="fas fa-user-plus"></i> Create Patient Account
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('createPatientForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData);
+            
+            // Hide previous alerts
+            document.getElementById('successAlert').style.display = 'none';
+            document.getElementById('errorAlert').style.display = 'none';
+            
+            // Send form data to server
+            fetch('/doctor/create_patient', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    document.getElementById('successMessage').textContent = result.message;
+                    document.getElementById('successAlert').style.display = 'block';
+                    
+                    // Extract patient ID from success message
+                    const patientIdMatch = result.message.match(/ID: (\d+)/);
+                    if (patientIdMatch) {
+                        const patientId = patientIdMatch[1];
+                        // Store patient ID for QR code viewing
+                        window.createdPatientId = patientId;
+                        // Show QR code container
+                        document.getElementById('qrCodeContainer').style.display = 'block';
+                    }
+                    
+                    document.getElementById('createPatientForm').reset();
+                } else {
+                    document.getElementById('errorMessage').textContent = result.message;
+                    document.getElementById('errorAlert').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                document.getElementById('errorMessage').textContent = 'An error occurred while creating the patient account.';
+                document.getElementById('errorAlert').style.display = 'block';
+            });
+        });
+
+        function viewQRCode() {
+            if (window.createdPatientId) {
+                window.open('/qr/' + window.createdPatientId, '_blank');
+            } else {
+                alert('No patient ID available. Please create a patient first.');
+            }
+        }
+    </script>
+</body>
+</html>

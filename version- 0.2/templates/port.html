@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Serial Port</title>
+    <style>
+        body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:24px}
+        .card{max-width:520px;margin:40px auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px}
+        h2{margin:0 0 12px 0}
+        form{display:flex;gap:8px;flex-wrap:wrap}
+        select,button{padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px}
+        button{background:#0ea5e9;color:#fff;border:none;cursor:pointer}
+        .ok{color:green;margin-top:10px}
+        .nav{margin-bottom:12px}
+        .nav a{margin-right:8px;color:#334155;text-decoration:none}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="nav">
+            <a href="/qa">Intake</a>
+            <a href="/sensor">Sensors</a>
+            <a href="/dashboard">Dashboard</a>
+        </div>
+        <h2>Select Serial Port</h2>
+        <form method="POST" action="/set_port">
+            <select name="port" required>
+                <option value="">Choose Port...</option>
+                {% for port in ports %}
+                <option value="{{ port }}" {% if port == selected_port %}selected{% endif %}>{{ port }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Connect</button>
+        </form>
+        {% if selected_port %}
+        <div class="ok">Connected to: {{ selected_port }}</div>
+        {% endif %}
+    </div>
+</body>
+</html>
+
+

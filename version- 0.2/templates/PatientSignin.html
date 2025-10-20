@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Sign In</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            margin: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #0ea5e9;
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+        }
+        .header p {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        .form-group label {
+            display: block;
+            color: #374151;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+        .form-group input::placeholder {
+            color: #9ca3af;
+        }
+        .signin-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 25px;
+        }
+        .signin-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.3);
+        }
+        .signin-button:active {
+            transform: translateY(0);
+        }
+        .signin-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .nav-links {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .nav-links a {
+            color: #0ea5e9;
+            text-decoration: none;
+            font-weight: 500;
+            margin: 0 15px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+        .nav-links a:hover {
+            background-color: rgba(14, 165, 233, 0.1);
+        }
+        .demo-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .demo-info h3 {
+            color: #0ea5e9;
+            margin: 0 0 10px 0;
+            font-size: 1.1rem;
+        }
+        .demo-info p {
+            color: #0369a1;
+            margin: 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .success-message {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            color: #64748b;
+            margin-top: 15px;
+        }
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .feature-list {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+        .feature-list h4 {
+            color: #374151;
+            margin: 0 0 15px 0;
+            font-size: 1rem;
+        }
+        .feature-list ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #64748b;
+        }
+        .feature-list li {
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 480px) {
+            .container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+            .header h1 {
+                font-size: 2rem;
+            }
+            .nav-links a {
+                display: block;
+                margin: 8px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-user-circle"></i></h1>
+            <h1>Patient Sign In</h1>
+            <p>Access your medical records and visit history</p>
+        </div>
+
+        
+
+        {% if error %}
+        <div class="error-message" id="errorMessage" style="display:block;">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorText">{{ error }}</span>
+        </div>
+        {% else %}
+        <div class="error-message" id="errorMessage">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="errorText"></span>
+        </div>
+        {% endif %}
+
+        
+
+        <form id="signinForm" method="POST" action="/patient/signin">
+            {% if patient_id %}
+            <input type="hidden" name="patient_id" value="{{ patient_id }}">
+            {% endif %}
+            <div class="form-group">
+                <label for="username">
+                    <i class="fas fa-user"></i> Username
+                </label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    placeholder="Enter your username"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">
+                    <i class="fas fa-lock"></i> Password
+                </label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    placeholder="Enter your password"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="signin-button" id="signinButton">
+                <i class="fas fa-sign-in-alt"></i> Sign In to My Account
+            </button>
+        </form>
+
+        
+
+        <div class="nav-links">
+            <a href="/PatientProfiles.html">
+                <i class="fas fa-users"></i> Browse All Patients
+            </a>
+            <a href="/dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+        </div>
+
+        <div class="feature-list">
+            <h4><i class="fas fa-star"></i> What you can do as a patient:</h4>
+            <ul>
+                <li>View your complete medical history</li>
+                <li>Check past visit records and test results</li>
+                <li>Review prescriptions and medications</li>
+                <li>Access doctor notes and diagnoses</li>
+                <li>View your personal information and emergency contacts</li>
+                <li>Track your health metrics over time</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Basic client-side guard: ensure both fields present before submit
+        document.getElementById('signinForm').addEventListener('submit', function(e) {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            if (!username || !password) {
+                e.preventDefault();
+                const errorDiv = document.getElementById('errorMessage');
+                const errorText = document.getElementById('errorText');
+                errorText.textContent = 'Please enter both username and password.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

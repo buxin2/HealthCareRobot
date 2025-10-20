@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: patient-health-app
+    env: python
+    plan: free
+    region: singapore
+    workingDir: version- 0.2
+    buildCommand: pip install -r ../requirements.txt
+    startCommand: gunicorn -w 2 -k gthread -b 0.0.0.0:$PORT app:app
+    autoDeploy: true
+    healthCheckPath: /hospital_login

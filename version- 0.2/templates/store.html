@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stored Patients</title>
+    <style>
+        body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:20px;background:#f7fafc;color:#0f172a}
+        .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+        input,button{padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px}
+        button{background:#0ea5e9;color:#fff;border:none;cursor:pointer}
+        table{width:100%;border-collapse:collapse;background:#fff}
+        th,td{border:1px solid #e2e8f0;padding:8px;font-size:14px}
+        th{background:#f1f5f9;text-align:left}
+        .wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:10px}
+    </style>
+</head>
+<body>
+    <h2>Stored Patients</h2>
+    <div class="bar">
+        <input id="q" placeholder="Search by name, age, or complaint..." value="{{ q or '' }}" />
+        <button onclick="location.href='/store?q=' + encodeURIComponent(document.getElementById('q').value)">Search</button>
+        <a href="/dashboard" style="margin-left:auto;text-decoration:none">Back to Dashboard</a>
+    </div>
+    <div class="wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Photo</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Chief Complaint</th>
+                    <th>Archived At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{% if r['photo'] %}<img src="/uploads/{{ r['photo'] }}" alt="photo" style="width:44px;height:44px;border-radius:50%;object-fit:cover">{% endif %}</td>
+                    <td>{{ r['name'] or '' }}</td>
+                    <td>{{ r['age'] or '' }}</td>
+                    <td>{{ r['chief_complaint'] or '' }}</td>
+                    <td>{{ r['archived_at'] or '' }}</td>
+                    <td>
+                        <a href="/stored/{{ r['id'] }}" target="_blank">View</a> ·
+                        <form action="/store/delete/{{ r['id'] }}" method="POST" style="display:inline" onsubmit="return confirm('Delete this stored patient record?')">
+                          <button type="submit" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer">Delete</button>
+                        </form>
+                        {% if r['profile_id'] %} · <a href="/PatientAccount.html?patient_id={{ r['profile_id'] }}" target="_blank">Profile</a>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+<script>
+// If dashboard signals an archive, auto-refresh this tab
+window.addEventListener('storage', function(e){
+  if (e.key === 'refresh_store') {
+    location.reload();
+  }
+});
+
+// Auto-update via SSE
+(function(){
+  const tbody = document.querySelector('tbody');
+  const qInput = document.getElementById('q');
+  function esc(s){return (s==null?'':String(s))}
+  function imgCell(photo){ return photo ? `<img src="/uploads/${photo}" alt="photo" style="width:44px;height:44px;border-radius:50%;object-fit:cover">` : '' }
+  function actionsCell(r){
+    const profile = r.profile_id ? ` · <a href="/PatientAccount.html?patient_id=${r.profile_id}" target="_blank">Profile</a>` : '';
+    return `<a href="/stored/${r.id}" target="_blank">View</a>${profile}`;
+  }
+  async function refresh(){
+    const q = qInput ? qInput.value : '';
+    const res = await fetch('/api/stored/recent?limit=50' + (q?('&q='+encodeURIComponent(q)):'') );
+    const rows = await res.json();
+    const html = rows.map(r=>`
+      <tr>
+        <td>${imgCell(r.photo)}</td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.age)}</td>
+        <td>${esc(r.chief_complaint)}</td>
+        <td>${esc(r.archived_at)}</td>
+        <td>${actionsCell(r)}</td>
+      </tr>`).join('');
+    tbody.innerHTML = html;
+  }
+  try{
+    const es = new EventSource('/events/patients');
+    es.addEventListener('patient_archived', refresh);
+    es.addEventListener('patient_added', refresh);
+    es.addEventListener('hello', function(){});
+  }catch(e){}
+})();
+</script>
+
+</body>
+</html>
+
+

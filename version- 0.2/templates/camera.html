@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Camera Stream</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(1000px 500px at 20% -10%, #e1f7ff 0%, rgba(225,247,255,0) 60%),
+                            radial-gradient(800px 400px at 120% 10%, #f6e8ff 0%, rgba(246,232,255,0) 60%),
+                            linear-gradient(180deg, #ffffff, #f8fbff);
+            --card-bg: rgba(255,255,255,0.7);
+            --card-br: 16px;
+            --border: 1px solid rgba(0,0,0,0.06);
+            --shadow: 0 10px 30px rgba(24,39,75,0.06), 0 1px 1px rgba(0,0,0,0.02);
+            --primary: #00b5d1;
+            --primary-2: #7c69ef;
+            --text: #0f172a;
+            --muted: #64748b;
+        }
+
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
+            background: var(--bg-gradient); 
+            margin: 0; 
+            color: var(--text); 
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .camera-container {
+            max-width: 800px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .camera-card {
+            background: var(--card-bg);
+            border: var(--border);
+            border-radius: 22px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(12px);
+            padding: 32px;
+            text-align: center;
+        }
+
+        .camera-header {
+            margin-bottom: 24px;
+        }
+
+        .camera-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0 0 8px 0;
+        }
+
+        .camera-header p {
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+
+        .video-stream {
+            width: 400px;
+            height: 300px;
+            border-radius: 16px;
+            object-fit: cover;
+            border: 3px solid #e9f2ff;
+            box-shadow: 0 10px 30px rgba(16,24,40,0.06);
+        }
+
+        .video-ring {
+            position: absolute;
+            width: 420px;
+            height: 320px;
+            border-radius: 50%;
+            border: 2px dashed rgba(124,105,239,0.35);
+            animation: spin 12s linear infinite;
+            top: -10px;
+            left: -10px;
+        }
+
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-2));
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: var(--text);
+            border: var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .camera-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .camera-info h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: var(--text);
+        }
+
+        .camera-info ul {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--muted);
+        }
+
+        .camera-info li {
+            margin-bottom: 4px;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        @media (max-width: 640px) {
+            .video-stream {
+                width: 300px;
+                height: 225px;
+            }
+            
+            .video-ring {
+                width: 320px;
+                height: 245px;
+            }
+            
+            .camera-card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="camera-container">
+        <div class="camera-card">
+            <div class="camera-header">
+                <h1><i class="fa-solid fa-camera"></i> Browser Camera Stream</h1>
+                <p>High-speed camera streaming using your device's camera</p>
+            </div>
+
+            <div class="video-container">
+                <div class="video-ring" aria-hidden="true"></div>
+                <video id="cameraStream" class="video-stream" autoplay muted playsinline></video>
+                <canvas id="photoCanvas" width="640" height="480"></canvas>
+            </div>
+
+            <div class="controls">
+                <a href="/qa" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Q&A
+                </a>
+                <button id="startCamera" class="btn btn-primary">
+                    <i class="fa-solid fa-video"></i> Start Camera
+                </button>
+                <button id="stopCamera" class="btn btn-secondary" disabled>
+                    <i class="fa-solid fa-video-slash"></i> Stop Camera
+                </button>
+                <button id="capturePhoto" class="btn btn-primary" disabled>
+                    <i class="fa-solid fa-camera"></i> Capture Photo
+                </button>
+                <button id="usePhoto" class="btn btn-primary" disabled style="display: none;">
+                    <i class="fa-solid fa-check"></i> Use This Photo
+                </button>
+            </div>
+
+            <div id="status" class="status info" style="display: none;">
+                Camera ready. Click "Start Camera" to begin.
+            </div>
+
+            <div class="camera-info">
+                <h3><i class="fa-solid fa-info-circle"></i> Browser Camera Features</h3>
+                <ul>
+                    <li><strong>High Speed:</strong> Direct browser camera access for instant streaming</li>
+                    <li><strong>No External Hardware:</strong> Uses your device's built-in camera</li>
+                    <li><strong>Better Quality:</strong> Higher resolution and frame rate</li>
+                    <li><strong>Privacy:</strong> Camera access controlled by browser permissions</li>
+                    <li><strong>Mobile Friendly:</strong> Works on phones, tablets, and computers</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stream = null;
+        let video = document.getElementById('cameraStream');
+        let canvas = document.getElementById('photoCanvas');
+        let ctx = canvas.getContext('2d');
+        let status = document.getElementById('status');
+        let startBtn = document.getElementById('startCamera');
+        let stopBtn = document.getElementById('stopCamera');
+        let captureBtn = document.getElementById('capturePhoto');
+        let usePhotoBtn = document.getElementById('usePhoto');
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        // Start camera
+        async function startCamera() {
+            try {
+                showStatus('Requesting camera access...', 'info');
+                
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: false
+                });
+                
+                video.srcObject = stream;
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                captureBtn.disabled = false;
+                
+                showStatus('✅ Camera started successfully!', 'success');
+                console.log('✅ Browser camera initialized');
+                
+            } catch (error) {
+                console.error('❌ Camera access denied:', error);
+                showStatus('❌ Camera access denied. Please allow camera permissions.', 'error');
+            }
+        }
+
+        // Stop camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            video.srcObject = null;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            captureBtn.disabled = true;
+            
+            showStatus('Camera stopped.', 'info');
+        }
+
+        // Capture photo
+        function capturePhoto() {
+            if (stream && video.videoWidth > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                showStatus('📸 Capturing photo...', 'info');
+                
+                // Convert to blob and upload to server
+                canvas.toBlob(function(blob) {
+                    if (!blob) {
+                        showStatus('❌ Failed to capture photo', 'error');
+                        return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('photo', blob, 'patient_photo.jpg');
+                    
+                    fetch('/upload_photo', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            showStatus('✅ Photo captured and saved to server!', 'success');
+                            console.log('✅ Photo uploaded:', data.filename);
+                            
+                            // Store filename for use in patient form
+                            sessionStorage.setItem('captured_photo', data.filename);
+                            
+                            // Show the "Use This Photo" button
+                            usePhotoBtn.style.display = 'inline-flex';
+                            usePhotoBtn.disabled = false;
+                            
+                            // Also create download link
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `patient_photo_${Date.now()}.jpg`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            
+                        } else {
+                            showStatus('❌ Photo upload failed: ' + data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Photo upload error:', error);
+                        showStatus('❌ Photo upload failed: ' + error.message, 'error');
+                    });
+                }, 'image/jpeg', 0.9);
+            } else {
+                showStatus('❌ Camera not ready for photo capture', 'error');
+            }
+        }
+
+        // Use photo function
+        function usePhoto() {
+            const capturedPhoto = sessionStorage.getItem('captured_photo');
+            if (capturedPhoto) {
+                showStatus('✅ Photo ready for patient form!', 'success');
+                // Redirect back to QA page where the photo will be used
+                setTimeout(() => {
+                    window.location.href = '/qa';
+                }, 1500);
+            } else {
+                showStatus('❌ No photo captured yet', 'error');
+            }
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', startCamera);
+        stopBtn.addEventListener('click', stopCamera);
+        captureBtn.addEventListener('click', capturePhoto);
+        usePhotoBtn.addEventListener('click', usePhoto);
+
+        // Stop camera when page unloads
+        window.addEventListener('beforeunload', stopCamera);
+
+        // Show initial status
+        showStatus('Camera ready. Click "Start Camera" to begin.', 'info');
+    </script>
+</body>
+</html>

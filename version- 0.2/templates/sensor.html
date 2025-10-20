@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Vital Signs Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header .status {
+            font-size: 1.2em;
+            padding: 10px 20px;
+            border-radius: 25px;
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .status.normal { background: #4ade80; color: white; }
+        .status.warning { background: #fb923c; color: white; }
+        .status.critical { background: #ef4444; color: white; animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .vital-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            transition: transform 0.3s;
+        }
+        
+        .vital-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .vital-card .icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+        
+        .vital-card .label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .vital-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .vital-card .unit {
+            font-size: 0.5em;
+            color: #999;
+            margin-left: 5px;
+        }
+        
+        .vital-card .alert {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .alert.low, .alert.high { background: #fef3c7; color: #92400e; }
+        .alert.critical { background: #fee2e2; color: #991b1b; }
+        .alert.ok { background: #d1fae5; color: #065f46; }
+        
+        .charts-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .charts-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+        
+        .timestamp {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            background: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            font-weight: bold;
+        }
+        
+        .connection-status.connected { color: #16a34a; }
+        .connection-status.disconnected { color: #dc2626; }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">● Connected</div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🏥 ESP32 Vital Signs Monitor</h1>
+            <div class="status" id="overallStatus">NORMAL</div>
+            <p style="margin-top: 15px; color: #666;">
+                Last Update: <span id="timestamp">--:--:--</span> | 
+                Measurements: <span id="measurements">0</span>
+            </p>
+        </div>
+        
+        <div class="vitals-grid">
+            <div class="vital-card">
+                <div class="icon">🌡️</div>
+                <div class="label">Body Temperature</div>
+                <div class="value">
+                    <span id="temperature">--</span>
+                    <span class="unit">°C</span>
+                </div>
+                <div class="alert ok" id="tempAlert">Normal</div>
+            </div>
+            
+            <div class="vital-card">
+                <div class="icon">❤️</div>
+                <div class="label">Heart Rate</div>
+                <div class="value">
+                    <span id="heartRate">--</span>
+                    <span class="unit">bpm</span>
+                </div>
+                <div class="alert ok" id="hrAlert">Normal</div>
+            </div>
+            
+            <div class="vital-card">
+                <div class="icon">🫁</div>
+                <div class="label">Blood Oxygen (SpO2)</div>
+                <div class="value">
+                    <span id="spo2">--</span>
+                    <span class="unit">%</span>
+                </div>
+                <div class="alert ok" id="spo2Alert">Normal</div>
+            </div>
+
+            <div class="vital-card">
+                <div class="icon">⚖️</div>
+                <div class="label">Weight</div>
+                <div class="value">
+                    <span id="weight">--</span>
+                    <span class="unit">kg</span>
+            </div>
+                <div class="alert ok">Stable</div>
+        </div>
+
+            <div class="vital-card">
+                <div class="icon">🌡️</div>
+                <div class="label">Room Temperature</div>
+                <div class="value">
+                    <span id="envTemperature">--</span>
+                    <span class="unit">°C</span>
+                </div>
+                <div class="alert ok" id="envTempAlert">Normal</div>
+        </div>
+
+            <div class="vital-card">
+                <div class="icon">💧</div>
+                <div class="label">Humidity</div>
+                <div class="value">
+                    <span id="humidity">--</span>
+                    <span class="unit">%</span>
+                </div>
+                <div class="alert ok" id="humidityAlert">Normal</div>
+            </div>
+            </div>
+
+        <div class="charts-section">
+            <h2>📈 Real-Time Vital Signs Trends</h2>
+            
+            <div class="chart-container">
+                <canvas id="tempChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="hrChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="spo2Chart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="weightChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="envTempChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="humidityChart"></canvas>
+            </div>
+        </div>
+
+        <div class="timestamp">
+            ESP32 System running in real-time monitoring mode
+            </div>
+        </div>
+    
+    <script>
+        // Chart configurations
+        const chartConfig = {
+            type: 'line',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
+                scales: {
+                    y: { beginAtZero: false },
+                    x: { display: true }
+                },
+                plugins: {
+                    legend: { display: true }
+                }
+            }
+        };
+        
+        // Initialize charts
+        const tempChart = new Chart(document.getElementById('tempChart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    data: [],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4
+                }]
+            }
+        });
+        
+        const hrChart = new Chart(document.getElementById('hrChart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Heart Rate (bpm)',
+                    data: [],
+                    borderColor: '#ec4899',
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    tension: 0.4
+                }]
+            }
+        });
+        
+        const spo2Chart = new Chart(document.getElementById('spo2Chart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'SpO2 (%)',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                ...chartConfig.options,
+                scales: {
+                    y: { min: 70, max: 100 }
+                }
+            }
+        });
+        
+        const weightChart = new Chart(document.getElementById('weightChart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Weight (kg)',
+                    data: [],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4
+                }]
+            }
+        });
+        
+        const envTempChart = new Chart(document.getElementById('envTempChart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Room Temperature (°C)',
+                    data: [],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4
+                }]
+            }
+        });
+        
+        const humidityChart = new Chart(document.getElementById('humidityChart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Humidity (%)',
+                    data: [],
+                    borderColor: '#06b6d4',
+                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                ...chartConfig.options,
+                scales: {
+                    y: { min: 0, max: 100 }
+                }
+            }
+        });
+        
+        // Update data every second
+        async function updateData() {
+            try {
+                const response = await fetch('/api/sensor');
+                const data = await response.json();
+                
+                // Update vital signs
+                document.getElementById('temperature').textContent = data.temperature.toFixed(1);
+                document.getElementById('heartRate').textContent = data.heart_rate || '--';
+                document.getElementById('spo2').textContent = data.spo2 || '--';
+                document.getElementById('weight').textContent = data.weight.toFixed(3);
+                document.getElementById('envTemperature').textContent = data.env_temperature ? data.env_temperature.toFixed(1) : '--';
+                document.getElementById('humidity').textContent = data.humidity ? data.humidity.toFixed(1) : '--';
+                document.getElementById('timestamp').textContent = data.timestamp;
+                document.getElementById('measurements').textContent = data.measurements;
+                
+                // Update overall status
+                const statusElement = document.getElementById('overallStatus');
+                statusElement.textContent = data.status.toUpperCase();
+                statusElement.className = 'status ' + data.status;
+                
+                // Update alerts
+                updateAlert('tempAlert', data.temperature, 35.5, 38.0, 39.5, '°C');
+                updateAlert('hrAlert', data.heart_rate, 50, 120, 150, 'bpm');
+                updateAlert('spo2Alert', data.spo2, 90, 101, 85, '%', true);
+                updateAlert('envTempAlert', data.env_temperature, 18, 25, 30, '°C');
+                updateAlert('humidityAlert', data.humidity, 30, 70, 80, '%');
+                
+                // Connection status
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                document.getElementById('connectionStatus').textContent = '● Connected';
+                
+            } catch (error) {
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                document.getElementById('connectionStatus').textContent = '● Disconnected';
+            }
+        }
+        
+        async function updateCharts() {
+            try {
+                const response = await fetch('/api/sensor/history');
+                const history = await response.json();
+                
+                // Update temperature chart
+                tempChart.data.labels = history.timestamps;
+                tempChart.data.datasets[0].data = history.temperature;
+                tempChart.update('none');
+                
+                // Update heart rate chart
+                hrChart.data.labels = history.timestamps;
+                hrChart.data.datasets[0].data = history.heart_rate;
+                hrChart.update('none');
+                
+                // Update SpO2 chart
+                spo2Chart.data.labels = history.timestamps;
+                spo2Chart.data.datasets[0].data = history.spo2;
+                spo2Chart.update('none');
+                
+                // Update weight chart
+                weightChart.data.labels = history.timestamps;
+                weightChart.data.datasets[0].data = history.weight;
+                weightChart.update('none');
+                
+                // Update environmental temperature chart
+                envTempChart.data.labels = history.timestamps;
+                envTempChart.data.datasets[0].data = history.env_temperature;
+                envTempChart.update('none');
+                
+                // Update humidity chart
+                humidityChart.data.labels = history.timestamps;
+                humidityChart.data.datasets[0].data = history.humidity;
+                humidityChart.update('none');
+                
+            } catch (error) {
+                console.error('Error updating charts:', error);
+            }
+        }
+        
+        function updateAlert(elementId, value, low, high, critical, unit, inverse = false) {
+            const element = document.getElementById(elementId);
+            
+            if (value === 0 || value === null) {
+                element.textContent = 'No Data';
+                element.className = 'alert';
+                return;
+            }
+            
+            let alertType = 'ok';
+            let alertText = 'Normal';
+            
+            if (inverse) {
+                // For SpO2 (higher is better)
+                if (value < critical) {
+                    alertType = 'critical';
+                    alertText = `Critical (${value}${unit})`;
+                } else if (value < low) {
+                    alertType = 'high';
+                    alertText = `Low (${value}${unit})`;
+                }
+            } else {
+                // For temperature and heart rate
+                if (value > critical || value < (critical * 0.6)) {
+                    alertType = 'critical';
+                    alertText = `Critical (${value}${unit})`;
+                } else if (value > high || value < low) {
+                    alertType = 'low';
+                    alertText = value > high ? `High (${value}${unit})` : `Low (${value}${unit})`;
+                }
+            }
+            
+            element.textContent = alertText;
+            element.className = `alert ${alertType}`;
+        }
+        
+        // Initialize the dashboard
+        function initDashboard() {
+            updateData();
+            updateCharts();
+            
+            // Update data every second
+            setInterval(updateData, 1000);
+            
+            // Update charts every 5 seconds
+            setInterval(updateCharts, 5000);
+        }
+        
+        // Start the dashboard when page loads
+        document.addEventListener('DOMContentLoaded', initDashboard);
+    </script>
+</body>
+</html>
