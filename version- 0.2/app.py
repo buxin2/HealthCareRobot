@@ -198,6 +198,9 @@ def enforce_access_rules():
         return None
     if path.startswith('/qr/scan'):
         return None
+    # Allow device endpoints (ESP32) to post vitals and poll commands without auth
+    if path == '/api/vitals' or path.startswith('/api/command'):
+        return None
     # Admin: full access
     if session.get('hospital_ok'):
         return None
@@ -265,6 +268,60 @@ def api_sensor():
 @app.route('/api/sensor/history')
 def api_sensor_history():
     return jsonify(sensor_history)
+
+# ESP32 Vitals ingestion (cloud)
+@app.route('/api/vitals', methods=['POST'])
+def api_vitals():
+    data = request.get_json(silent=True) or {}
+    # Expected JSON keys: heart_rate, spo2, body_temp (C), weight (kg), env_temp (C), humidity, patient_id
+    try:
+        profile_id = int(data.get('patient_id'))
+    except (TypeError, ValueError):
+        return jsonify({'status': 'error', 'message': 'patient_id required'}), 400
+
+    profile = get_profile(profile_id)
+    if not profile:
+        return jsonify({'status': 'error', 'message': f'Patient profile {profile_id} not found'}), 404
+
+    def num_or_none(v):
+        try:
+            return float(v) if v is not None and v != '' else None
+        except Exception:
+            return None
+
+    heart_rate = num_or_none(data.get('heart_rate'))
+    spo2 = num_or_none(data.get('spo2'))
+    body_temp_c = num_or_none(data.get('body_temp'))
+    env_temp_c = num_or_none(data.get('env_temp'))
+    humidity_percent = num_or_none(data.get('humidity'))
+    weight_kg = num_or_none(data.get('weight'))
+
+    body_temp_f = (body_temp_c * 9/5 + 32) if (body_temp_c is not None) else None
+    env_temp_f = (env_temp_c * 9/5 + 32) if (env_temp_c is not None) else None
+
+    # Insert minimal row linked to profile
+    values = (
+        profile_id, None, None, None, None, None, None,
+        None, None, None,
+        None,
+        None, None, None,
+        None,
+        None, None,
+        heart_rate, spo2,
+        body_temp_f, env_temp_f, humidity_percent, weight_kg
+    )
+    row_id = insert_patient(values)
+    try:
+        sse_publish('patient_added', {'id': int(row_id), 'profile_id': int(profile_id)})
+    except Exception:
+        pass
+    return jsonify({'status': 'ok', 'id': row_id, 'profile_id': profile_id})
+
+# Optional: ESP32 command polling stub
+@app.route('/api/command', methods=['GET', 'POST'])
+def api_command():
+    # Placeholder implementation; extend to return real commands per patient or device
+    return jsonify({'command': None})
 
 @app.route('/set_port', methods=['POST'])
 def set_port():

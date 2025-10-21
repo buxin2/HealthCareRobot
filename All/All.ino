@@ -4,6 +4,10 @@
 #include "spo2_algorithm.h"
 #include "HX711.h"
 #include "DHT.h"
+// WiFi + HTTP for cloud communication
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 
 // ================== PIN CONNECTIONS ==================
 // MLX90614 -> ESP32
@@ -75,7 +79,98 @@ bool dhtWorking = false;
 float envTemperature = 0;
 float humidity = 0;
 
+// ================== NETWORK CONFIG ==================
+// TODO: Set your Wi-Fi credentials
+const char* WIFI_SSID = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+
+// Backend base URL (Render)
+const char* BACKEND_BASE = "https://healthcarerobot.onrender.com";
+const char* VITALS_PATH = "/api/vitals";        // Expected backend endpoint
+const char* COMMAND_PATH = "/api/command";      // Optional: backend commands (GET/POST)
+
+// Set a patient id to associate vitals (could be configured via UI/scan/etc.)
+int PATIENT_ID = 5; // Change as needed or make dynamic
+
+// Post interval (ms)
+const unsigned long POST_INTERVAL_MS = 2000;
+unsigned long lastPostAt = 0;
+
+// Command poll interval (ms) - optional
+const unsigned long CMD_POLL_INTERVAL_MS = 5000;
+unsigned long lastCmdPollAt = 0;
+
+// Connect to WiFi (blocking with retries)
+void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    if (millis() - start > 20000) { // 20s timeout, then retry
+      WiFi.disconnect(true);
+      delay(1000);
+      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+      start = millis();
+    }
+  }
+}
+
+// Send vitals to backend via HTTPS POST
+void sendVitalsHTTP(float heart_rate_val, float spo2_val, float body_temp_c,
+                    float weight_kg, float env_temp_c, float humidity_pct, int patient_id) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  WiFiClientSecure client;
+  client.setInsecure(); // Accept all certs (simpler for prototyping)
+
+  HTTPClient https;
+  String url = String(BACKEND_BASE) + String(VITALS_PATH);
+  if (!https.begin(client, url)) {
+    return;
+  }
+
+  https.addHeader("Content-Type", "application/json");
+
+  // Build JSON body
+  String body = "{";
+  body += "\"heart_rate\":" + String((int)heart_rate_val) + ",";
+  body += "\"spo2\":" + String((int)spo2_val) + ",";
+  body += "\"body_temp\":" + String(body_temp_c, 1) + ",";
+  body += "\"weight\":" + String(weight_kg, 3) + ",";
+  body += "\"env_temp\":" + String(env_temp_c, 1) + ",";
+  body += "\"humidity\":" + String(humidity_pct, 1) + ",";
+  body += "\"patient_id\":" + String(patient_id);
+  body += "}";
+
+  int code = https.POST(body);
+  // Optional: you can inspect response if needed
+  // String resp = https.getString();
+  https.end();
+}
+
+// Optional: poll backend for commands (GET)
+void pollCommandHTTP(int patient_id) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient https;
+  String url = String(BACKEND_BASE) + String(COMMAND_PATH) + "?patient_id=" + String(patient_id);
+  if (!https.begin(client, url)) {
+    return;
+  }
+  int code = https.GET();
+  if (code == 200) {
+    String cmd = https.getString();
+    // TODO: parse and act on commands like "Start Interview", "Capture Weight", etc.
+    // keep non-blocking behavior
+  }
+  https.end();
+}
+
 void setup() {
+  // Optional local debug (safe to leave on; not required for cloud)
   Serial.begin(115200);
   delay(2000);
  
@@ -145,6 +240,12 @@ void setup() {
   Serial.println("──────────────────────────────────────────────────");
   Serial.println("System Ready!");
   Serial.println("──────────────────────────────────────────────────\n");
+
+  // ---------- Connect Wi-Fi for cloud communication ----------
+  Serial.println("📡 Connecting Wi-Fi...");
+  connectWiFi();
+  Serial.print("✅ Wi-Fi connected. IP: ");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
@@ -229,26 +330,13 @@ void loop() {
     }
   }
 
-  // --- Send JSON Data to Flask ---
-  Serial.print("JSON:");
-  Serial.print("{");
-  Serial.print("\"temperature\":");
-  Serial.print(temperature, 1);
-  Serial.print(",\"heartRate\":");
-  Serial.print(validHeartRate && fingerDetected ? heartRate : 0);
-  Serial.print(",\"spo2\":");
-  Serial.print(validSPO2 && fingerDetected ? spo2 : 0);
-  Serial.print(",\"weight\":");
-  Serial.print(weight_kg, 3);
-  Serial.print(",\"envTemperature\":");
-  Serial.print(envTemperature, 1);
-  Serial.print(",\"humidity\":");
-  Serial.print(humidity, 1);
-  Serial.print(",\"status\":\"");
-  Serial.print(status);
-  Serial.print("\",\"measurements\":");
-  Serial.print(measurementCount);
-  Serial.println("}");
+  // --- Send vitals to Flask backend over Wi-Fi ---
+  if (millis() - lastPostAt >= POST_INTERVAL_MS) {
+    float hr_out = (max30102Working && fingerDetected && validHeartRate) ? heartRate : 0;
+    float spo2_out = (max30102Working && fingerDetected && validSPO2) ? spo2 : 0;
+    sendVitalsHTTP(hr_out, spo2_out, temperature, weight_kg, envTemperature, humidity, PATIENT_ID);
+    lastPostAt = millis();
+  }
 
   // --- Display All Vitals ---
   Serial.println("╔═══════════════════════ VITAL SIGNS ════════════════════════╗");
@@ -334,37 +422,10 @@ void loop() {
   Serial.println(measurementCount);
   Serial.println("╚════════════════════════════════════════════════════════════╝\n");
  
-  // --- Check for Serial Commands - EXACTLY like your working code ---
-  if (Serial.available()) {
-    char cmd = Serial.read();
-   
-    if (cmd == 't' || cmd == 'T') {
-      // Tare command
-      Serial.println("⚖️  Taring...");
-      scale.tare();
-      Serial.println("✅ Tare complete\n");
-    }
-    else if (cmd == 'c' || cmd == 'C') {
-      // Enter calibration mode
-      Serial.println("⚖️  Enter calibration mode");
-      Serial.println("Place known weight and enter weight in grams:");
-     
-      while (!Serial.available()) {
-        delay(10);
-      }
-     
-      float known_weight = Serial.parseFloat();
-      Serial.print("Calibrating with ");
-      Serial.print(known_weight);
-      Serial.println(" g");
-     
-      long raw_value = scale.get_units(10);
-      calibration_factor = raw_value / known_weight;
-     
-      Serial.print("✅ New calibration factor: ");
-      Serial.println(calibration_factor);
-      Serial.println("Calibration complete\n");
-    }
+  // --- Optional: Poll backend for commands ---
+  if (millis() - lastCmdPollAt >= CMD_POLL_INTERVAL_MS) {
+    pollCommandHTTP(PATIENT_ID);
+    lastCmdPollAt = millis();
   }
  
   delay(500);  // Match your working code's delay
