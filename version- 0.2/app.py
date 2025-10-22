@@ -252,7 +252,68 @@ def home():
 def sensor():
     if not session.get('hospital_ok'):
         return redirect(url_for('hospital_login'))
-    return render_template('sensor.html', data=latest_sensor_data)
+
+    # Optional patient filter via query param
+    q_pid = request.args.get('patient_id')
+    pid_int = None
+    try:
+        if q_pid is not None:
+            pid_int = int(q_pid)
+    except Exception:
+        pid_int = None
+
+    # Fetch latest vitals row from DB (most recent patient visit)
+    row = None
+    try:
+        with get_conn() as conn:
+            if pid_int is not None:
+                row = conn.execute(
+                    """
+                    SELECT heart_rate, spo2, body_temp_f, env_temp_f, humidity_percent, weight_kg, datetime(created_at) AS ts
+                    FROM patients
+                    WHERE profile_id = ?
+                    ORDER BY datetime(created_at) DESC
+                    LIMIT 1
+                    """,
+                    (pid_int,)
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    SELECT heart_rate, spo2, body_temp_f, env_temp_f, humidity_percent, weight_kg, datetime(created_at) AS ts
+                    FROM patients
+                    ORDER BY datetime(created_at) DESC
+                    LIMIT 1
+                    """
+                ).fetchone()
+    except Exception as e:
+        row = None
+
+    # Map DB row to template data, converting F->C where needed
+    def f_to_c(v):
+        try:
+            return (float(v) - 32.0) * 5.0/9.0 if v is not None else 0
+        except Exception:
+            return 0
+
+    data = dict(latest_sensor_data)  # default from serial for local dev
+    if row:
+        try:
+            data = {
+                'temperature': f_to_c(row['body_temp_f']) if 'body_temp_f' in row.keys() else 0,
+                'heart_rate': float(row['heart_rate']) if 'heart_rate' in row.keys() and row['heart_rate'] is not None else 0,
+                'spo2': float(row['spo2']) if 'spo2' in row.keys() and row['spo2'] is not None else 0,
+                'weight': float(row['weight_kg']) if 'weight_kg' in row.keys() and row['weight_kg'] is not None else 0,
+                'env_temperature': f_to_c(row['env_temp_f']) if 'env_temp_f' in row.keys() else 0,
+                'humidity': float(row['humidity_percent']) if 'humidity_percent' in row.keys() and row['humidity_percent'] is not None else 0,
+                'status': 'normal',
+                'measurements': 0,
+                'timestamp': (row['ts'] if 'ts' in row.keys() else datetime.now().strftime('%H:%M:%S'))
+            }
+        except Exception:
+            pass
+
+    return render_template('sensor.html', data=data)
 
 @app.route('/port')
 def port_page():

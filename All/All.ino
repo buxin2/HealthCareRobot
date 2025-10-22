@@ -8,6 +8,13 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+// WiFiManager for captive portal configuration
+#include <WiFiManager.h>
+
+// Global WiFiManager instance for portal state checks
+WiFiManager wm;
 
 // ================== PIN CONNECTIONS ==================
 // MLX90614 -> ESP32
@@ -79,10 +86,12 @@ bool dhtWorking = false;
 float envTemperature = 0;
 float humidity = 0;
 
+// Wi-Fi reconnection check timer
+unsigned long lastWiFiCheckAt = 0;
+const unsigned long WIFI_CHECK_INTERVAL_MS = 5000;
+
 // ================== NETWORK CONFIG ==================
-// TODO: Set your Wi-Fi credentials
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+// WiFi credentials are configured via WiFiManager captive portal
 
 // Backend base URL (Render)
 const char* BACKEND_BASE = "https://healthcarerobot.onrender.com";
@@ -103,17 +112,23 @@ unsigned long lastCmdPollAt = 0;
 // Connect to WiFi (blocking with retries)
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    if (millis() - start > 20000) { // 20s timeout, then retry
-      WiFi.disconnect(true);
-      delay(1000);
-      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-      start = millis();
-    }
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  wm.setDebugOutput(true);
+  wm.setConfigPortalBlocking(true);
+  wm.setConfigPortalTimeout(0);           // keep portal open until configured
+  wm.setConnectTimeout(20);               // STA connect timeout seconds per attempt
+  wm.setConnectRetries(3);                // retries before opening portal
+
+  Serial.println("[WiFi] Attempting autoConnect or open portal if needed...");
+  bool res = wm.autoConnect("BuXin_Device_Setup");
+  if (!res) {
+    // As a fallback, explicitly start portal and block until configured
+    Serial.println("[WiFi] autoConnect failed or no credentials. Starting config portal 'BuXin_Device_Setup'.");
+    wm.startConfigPortal("BuXin_Device_Setup");
   }
+  Serial.print("[WiFi] Connected. IP: ");
+  Serial.println(WiFi.localIP());
 }
 
 // Send vitals to backend via HTTPS POST
@@ -144,8 +159,16 @@ void sendVitalsHTTP(float heart_rate_val, float spo2_val, float body_temp_c,
   body += "}";
 
   int code = https.POST(body);
-  // Optional: you can inspect response if needed
-  // String resp = https.getString();
+  Serial.print("[HTTP] POST /api/vitals -> ");
+  Serial.println(code);
+  if (code <= 0) {
+    Serial.print("[HTTP] Error: ");
+    Serial.println(https.errorToString(code));
+  } else if (code >= 400) {
+    String resp = https.getString();
+    Serial.print("[HTTP] Response body: ");
+    Serial.println(resp);
+  }
   https.end();
 }
 
@@ -249,6 +272,12 @@ void setup() {
 }
 
 void loop() {
+  if (WiFi.status() != WL_CONNECTED && !wm.getConfigPortalActive()) {
+    if (millis() - lastWiFiCheckAt >= WIFI_CHECK_INTERVAL_MS) {
+      WiFi.reconnect();
+      lastWiFiCheckAt = millis();
+    }
+  }
   // --- Read Temperature (MLX90614) ---
   float temperature = 0;
   if (mlxWorking && (millis() - lastTempRead >= 1000)) {
@@ -421,6 +450,24 @@ void loop() {
   Serial.print("📊 Measurements: ");
   Serial.println(measurementCount);
   Serial.println("╚════════════════════════════════════════════════════════════╝\n");
+
+  // --- Emit JSON line for Flask serial reader ---
+  {
+    float hr_out = (max30102Working && fingerDetected && validHeartRate) ? heartRate : 0;
+    float spo2_out = (max30102Working && fingerDetected && validSPO2) ? spo2 : 0;
+    String json = "{";
+    json += "\"temperature\":" + String(temperature, 1) + ",";
+    json += "\"heartRate\":" + String((int)hr_out) + ",";
+    json += "\"spo2\":" + String((int)spo2_out) + ",";
+    json += "\"weight\":" + String(weight_kg, 3) + ",";
+    json += "\"envTemperature\":" + String(envTemperature, 1) + ",";
+    json += "\"humidity\":" + String(humidity, 1) + ",";
+    json += "\"status\":\"" + status + "\",";
+    json += "\"measurements\":" + String(measurementCount);
+    json += "}";
+    Serial.print("JSON:");
+    Serial.println(json);
+  }
  
   // --- Optional: Poll backend for commands ---
   if (millis() - lastCmdPollAt >= CMD_POLL_INTERVAL_MS) {
