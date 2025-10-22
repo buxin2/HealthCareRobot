@@ -23,7 +23,11 @@ from db import (
     create_patient_profile, update_patient_profile, get_all_patient_profiles, verify_patient_login,
     generate_patient_qr_code, verify_patient_qr_code, parse_qr_code_data
 )
-import serial
+# Serial is optional; on Render there is no COM port
+try:
+    import serial  # type: ignore
+except Exception:
+    serial = None  # sentinel for unavailable serial
 import json
 import threading
 import time
@@ -39,8 +43,8 @@ app = Flask(__name__)
 # Use a static secret key at startup to avoid DB access before init
 app.secret_key = 'dev_secret_key'
 
-# ESP32 Serial Configuration
-SERIAL_PORT = 'COM3'  # Change to your ESP32 port
+# ESP32 Serial Configuration (disabled by default on Render)
+SERIAL_PORT = 'COM3'
 BAUD_RATE = 115200
 
 # Store latest sensor data
@@ -69,77 +73,72 @@ sensor_history = {
 
 ser = None
 
-def read_esp32_serial():
-    """Background thread to read ESP32 serial data"""
-    global latest_sensor_data, sensor_history, ser
-    
+# Optionally start ESP32 serial reader only when enabled and available
+def _maybe_start_serial_reader():
     try:
-        ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-        print(f"✅ Connected to ESP32 on {SERIAL_PORT}")
-        time.sleep(2)  # Wait for ESP32 to initialize
-        
-        while True:
-            try:
-                if ser.in_waiting > 0:
-                    line = ser.readline().decode('utf-8').strip()
-                    
-                    # Look for JSON data from ESP32
-                    if line.startswith("JSON:"):
-                        json_str = line.replace("JSON:", "")
-                        data = json.loads(json_str)
-                        
-                        # Update latest data
-                        latest_sensor_data = {
-                            'temperature': data.get('temperature', 0),
-                            'heart_rate': data.get('heartRate', 0),
-                            'spo2': data.get('spo2', 0),
-                            'weight': data.get('weight', 0),
-                            'env_temperature': data.get('envTemperature', 0),
-                            'humidity': data.get('humidity', 0),
-                            'status': data.get('status', 'normal'),
-                            'measurements': data.get('measurements', 0),
-                            'timestamp': datetime.now().strftime('%H:%M:%S')
-                        }
-                        
-                        # Update history for charts
-                        sensor_history['timestamps'].append(latest_sensor_data['timestamp'])
-                        sensor_history['temperature'].append(latest_sensor_data['temperature'])
-                        sensor_history['heart_rate'].append(latest_sensor_data['heart_rate'])
-                        sensor_history['spo2'].append(latest_sensor_data['spo2'])
-                        sensor_history['weight'].append(latest_sensor_data['weight'])
-                        sensor_history['env_temperature'].append(latest_sensor_data['env_temperature'])
-                        sensor_history['humidity'].append(latest_sensor_data['humidity'])
-                        
-                        # Keep only last 50 readings
-                        if len(sensor_history['timestamps']) > 50:
-                            for key in sensor_history:
-                                sensor_history[key].pop(0)
-                        
-                        print(f"📊 ESP32 Data: Temp={latest_sensor_data['temperature']}°C, HR={latest_sensor_data['heart_rate']}bpm, SpO2={latest_sensor_data['spo2']}%, Weight={latest_sensor_data['weight']}kg, EnvTemp={latest_sensor_data['env_temperature']}°C, Humidity={latest_sensor_data['humidity']}%")
-                    
-                    else:
-                        # Print other serial output (debug messages)
-                        print(line)
-                        
-            except json.JSONDecodeError:
-                pass
-            except Exception as e:
-                print(f"Error reading ESP32 serial: {e}")
-                
-    except serial.SerialException as e:
-        print(f"❌ Could not connect to ESP32 on {SERIAL_PORT}: {e}")
-        print("   Make sure:")
-        print("   1. ESP32 is connected via USB")
-        print("   2. Correct COM port is selected")
-        print("   3. No other program is using the port")
-        print("   Continuing without ESP32 connection...")
-        # Continue running without ESP32
-        while True:
-            time.sleep(10)  # Keep thread alive but don't try to reconnect
+        import os as _os
+        enable_serial = _os.getenv('ENABLE_SERIAL', '0') == '1'
+        if not enable_serial:
+            print("ℹ️ Serial reader disabled (ENABLE_SERIAL not set)")
+            return
+        if serial is None:
+            print("ℹ️ pyserial not available; skipping serial reader")
+            return
 
-# Start ESP32 serial reading thread
-esp32_thread = threading.Thread(target=read_esp32_serial, daemon=True)
-esp32_thread.start()
+        def read_esp32_serial():
+            """Background thread to read ESP32 serial data (local dev only)"""
+            global latest_sensor_data, sensor_history, ser
+            try:
+                ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+                print(f"✅ Connected to ESP32 on {SERIAL_PORT}")
+                time.sleep(2)
+                while True:
+                    try:
+                        if ser.in_waiting > 0:
+                            line = ser.readline().decode('utf-8').strip()
+                            if line.startswith("JSON:"):
+                                json_str = line.replace("JSON:", "")
+                                data = json.loads(json_str)
+                                latest_sensor_data.update({
+                                    'temperature': data.get('temperature', 0),
+                                    'heart_rate': data.get('heartRate', 0),
+                                    'spo2': data.get('spo2', 0),
+                                    'weight': data.get('weight', 0),
+                                    'env_temperature': data.get('envTemperature', 0),
+                                    'humidity': data.get('humidity', 0),
+                                    'status': data.get('status', 'normal'),
+                                    'measurements': data.get('measurements', 0),
+                                    'timestamp': datetime.now().strftime('%H:%M:%S')
+                                })
+                                sensor_history['timestamps'].append(latest_sensor_data['timestamp'])
+                                sensor_history['temperature'].append(latest_sensor_data['temperature'])
+                                sensor_history['heart_rate'].append(latest_sensor_data['heart_rate'])
+                                sensor_history['spo2'].append(latest_sensor_data['spo2'])
+                                sensor_history['weight'].append(latest_sensor_data['weight'])
+                                sensor_history['env_temperature'].append(latest_sensor_data['env_temperature'])
+                                sensor_history['humidity'].append(latest_sensor_data['humidity'])
+                                if len(sensor_history['timestamps']) > 50:
+                                    for key in sensor_history:
+                                        sensor_history[key].pop(0)
+                                print(f"📊 ESP32 Data: Temp={latest_sensor_data['temperature']}°C, HR={latest_sensor_data['heart_rate']}bpm, SpO2={latest_sensor_data['spo2']}%, Weight={latest_sensor_data['weight']}kg, EnvTemp={latest_sensor_data['env_temperature']}°C, Humidity={latest_sensor_data['humidity']}%")
+                            else:
+                                print(line)
+                    except json.JSONDecodeError:
+                        pass
+                    except Exception as e:
+                        print(f"Error reading ESP32 serial: {e}")
+            except Exception as e:
+                print(f"ℹ️ Serial reader not started: {e}")
+
+        t = threading.Thread(target=read_esp32_serial, daemon=True)
+        t.start()
+    except Exception as _e:
+        try:
+            print(f"ℹ️ Skipping serial reader due to error: {_e}")
+        except Exception:
+            pass
+
+_maybe_start_serial_reader()
 
 # -------------------
 # Real-time SSE Broker
