@@ -333,15 +333,21 @@ def api_sensor_history():
 @app.route('/api/vitals', methods=['POST'])
 def api_vitals():
     data = request.get_json(silent=True) or {}
-    # Expected JSON keys: heart_rate, spo2, body_temp (C), weight (kg), env_temp (C), humidity, patient_id
-    try:
-        profile_id = int(data.get('patient_id'))
-    except (TypeError, ValueError):
-        return jsonify({'status': 'error', 'message': 'patient_id required'}), 400
-
-    profile = get_profile(profile_id)
-    if not profile:
-        return jsonify({'status': 'error', 'message': f'Patient profile {profile_id} not found'}), 404
+    # Accept both snake_case and camelCase keys from ESP32
+    # Expected keys (either form): heart_rate/heartRate, spo2, body_temp/temperature (C),
+    # weight (kg), env_temp/envTemperature (C), humidity, patient_id
+    pid_raw = data.get('patient_id')
+    profile = None
+    profile_id = None
+    if pid_raw is not None and pid_raw != '':
+        try:
+            profile_id = int(pid_raw)
+            profile = get_profile(profile_id)
+            if not profile:
+                # If provided patient_id doesn't exist, still proceed to update in-memory values
+                profile_id = None
+        except (TypeError, ValueError):
+            profile_id = None
 
     def num_or_none(v):
         try:
@@ -349,32 +355,61 @@ def api_vitals():
         except Exception:
             return None
 
-    heart_rate = num_or_none(data.get('heart_rate'))
+    heart_rate = num_or_none(data.get('heart_rate') if 'heart_rate' in data else data.get('heartRate'))
     spo2 = num_or_none(data.get('spo2'))
-    body_temp_c = num_or_none(data.get('body_temp'))
-    env_temp_c = num_or_none(data.get('env_temp'))
+    body_temp_c = num_or_none(data.get('body_temp') if 'body_temp' in data else data.get('temperature'))
+    env_temp_c = num_or_none(data.get('env_temp') if 'env_temp' in data else data.get('envTemperature'))
     humidity_percent = num_or_none(data.get('humidity'))
     weight_kg = num_or_none(data.get('weight'))
 
     body_temp_f = (body_temp_c * 9/5 + 32) if (body_temp_c is not None) else None
     env_temp_f = (env_temp_c * 9/5 + 32) if (env_temp_c is not None) else None
 
-    # Insert minimal row linked to profile
-    values = (
-        profile_id, None, None, None, None, None, None,
-        None, None, None,
-        None,
-        None, None, None,
-        None,
-        None, None,
-        heart_rate, spo2,
-        body_temp_f, env_temp_f, humidity_percent, weight_kg
-    )
-    row_id = insert_patient(values)
+    # If a valid patient profile is available, insert a minimal row linked to profile
+    row_id = None
+    if profile_id is not None:
+        values = (
+            profile_id, None, None, None, None, None, None,
+            None, None, None,
+            None,
+            None, None, None,
+            None,
+            None, None,
+            heart_rate, spo2,
+            body_temp_f, env_temp_f, humidity_percent, weight_kg
+        )
+        row_id = insert_patient(values)
+    # Update in-memory snapshot and history so /api/sensor reflects latest cloud data
     try:
-        sse_publish('patient_added', {'id': int(row_id), 'profile_id': int(profile_id)})
+        latest_sensor_data.update({
+            'temperature': float(body_temp_c) if body_temp_c is not None else 0,
+            'heart_rate': float(heart_rate) if heart_rate is not None else 0,
+            'spo2': float(spo2) if spo2 is not None else 0,
+            'weight': float(weight_kg) if weight_kg is not None else 0,
+            'env_temperature': float(env_temp_c) if env_temp_c is not None else 0,
+            'humidity': float(humidity_percent) if humidity_percent is not None else 0,
+            'status': str(data.get('status') or 'normal'),
+            'measurements': int((latest_sensor_data.get('measurements') or 0)) + 1,
+            'timestamp': datetime.now().strftime('%H:%M:%S')
+        })
+        # Append to history with max length 50
+        sensor_history['timestamps'].append(latest_sensor_data['timestamp'])
+        sensor_history['temperature'].append(latest_sensor_data['temperature'])
+        sensor_history['heart_rate'].append(latest_sensor_data['heart_rate'])
+        sensor_history['spo2'].append(latest_sensor_data['spo2'])
+        sensor_history['weight'].append(latest_sensor_data['weight'])
+        sensor_history['env_temperature'].append(latest_sensor_data['env_temperature'])
+        sensor_history['humidity'].append(latest_sensor_data['humidity'])
+        if len(sensor_history['timestamps']) > 50:
+            for key in sensor_history:
+                sensor_history[key].pop(0)
     except Exception:
         pass
+    if row_id is not None and profile_id is not None:
+        try:
+            sse_publish('patient_added', {'id': int(row_id), 'profile_id': int(profile_id)})
+        except Exception:
+            pass
     return jsonify({'status': 'ok', 'id': row_id, 'profile_id': profile_id})
 
 # Optional: ESP32 command polling stub
